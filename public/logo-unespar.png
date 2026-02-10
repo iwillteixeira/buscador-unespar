@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="pt-br" dir="ltr">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+    
+        <base href="https://unespar.edu.br/portal_resources/theme/tema-unespar-plone/img/"><!--[if lt IE 7]></base><![endif]-->
+    
+
+    
+        
+
+
+
+  
+    <link rel="stylesheet" type="text/css" href="https://unespar.edu.br/portal_css/Sunburst%20Theme/reset-cachekey-5757778d5aaf47f91413810538fd3bd0.css" media="screen">
+
+    <link rel="stylesheet" type="text/css" href="https://unespar.edu.br/portal_css/Sunburst%20Theme/base-cachekey-74cf1c244789ece46eef1071acf395e9.css">
+
+    <link rel="stylesheet" type="text/css" href="https://unespar.edu.br/portal_css/Sunburst%20Theme/resourceplone.app.jquerytools.overlays-cachekey-c0c4e8196749dae17227cc36f258e311.css" media="screen">
+
+    <style type="text/css" media="screen">@import url(https://unespar.edu.br/portal_css/Sunburst%20Theme/resourceplone.formwidget.autocompletejquery.autocomplete-cachekey-d120e20c1f33a2460c1160e42214ee0e.css);</style>
+
+    <link rel="stylesheet" type="text/css" href="https://unespar.edu.br/portal_css/Sunburst%20Theme/resourceplone.formwidget.querystring.querywidget-cachekey-56d43b04fac0867ff505695959900be6.css" media="screen">
+
+    <style type="text/css" media="screen">@import url(https://unespar.edu.br/portal_css/Sunburst%20Theme/resourcecalendar_stylescalendar-cachekey-f99f5bc88421b26dd98b23ba3091d22f.css);</style>
+
+    <link rel="stylesheet" type="text/css" href="https://unespar.edu.br/portal_css/Sunburst%20Theme/resourcebrasil.gov.agendaagenda-cachekey-756930d7f9eb7ceccb21beb2af332fc6.css">
+
+    <link rel="stylesheet" type="text/css" href="https://unespar.edu.br/portal_css/Sunburst%20Theme/resourcebrasil.gov.barracssmain-cachekey-1ad10fb70570759300ef574964cc1b05.css" media="all" title="Brasil.gov.br: Barra">
+
+    <style type="text/css" media="screen">@import url(https://unespar.edu.br/portal_css/Sunburst%20Theme/jquery.autocomplete-cachekey-3234e605c4376066c4302476a69ac3f8.css);</style>
+
+    <style type="text/css" media="screen">@import url(https://unespar.edu.br/portal_css/Sunburst%20Theme/resourceProducts.Doormat.stylesheetsdoormat-cachekey-24bbbb99f27106cc047144bb965952af.css);</style>
+
+    <link rel="stylesheet" type="text/css" href="https://unespar.edu.br/portal_css/Sunburst%20Theme/embedder-cachekey-288f80cb63426bde80e0a9cc90a965e2.css" media="screen">
+
+    <style type="text/css" media="screen">@import url(https://unespar.edu.br/portal_css/Sunburst%20Theme/resourcecollective.nitfcharcount-cachekey-28fc3076bee496cae93ce935322e3d70.css);</style>
+
+    <link rel="stylesheet" type="text/css" href="https://unespar.edu.br/portal_css/Sunburst%20Theme/ploneCustom-cachekey-8892d24e9a40d6726bf4b14c211605f8.css">
+
+    <style type="text/css" media="screen">@import url(https://unespar.edu.br/portal_css/Sunburst%20Theme/resourcecollective.uploadcssbootstrap.min-cachekey-d1c90e43abfa07e203009de8024a0833.css);</style>
+
+    <link rel="stylesheet" type="text/css" href="https://unespar.edu.br/portal_css/Sunburst%20Theme/resourcebrasil.gov.portalcssmain-cachekey-53f815dae7583be16d9641340fd380cd.css" media="screen">
+
+        <!--[if lt IE 8]>    
+    
+    <link rel="stylesheet" type="text/css" href="https://unespar.edu.br/portal_css/Sunburst%20Theme/IEFixes-cachekey-a6e421992bf969ba8cb88ff9f796087f.css" media="screen" />
+        <![endif]-->
+    
+
+  
+  
+    <script type="text/javascript" src="https://unespar.edu.br/portal_javascripts/Sunburst%20Theme/resourceplone.app.jquery-cachekey-50e68128fe15f04bfabeb6a37be1690a.js"></script>
+
+    <script type="text/javascript" src="https://unespar.edu.br/portal_javascripts/Sunburst%20Theme/collective.js.jqueryui.custom.min-cachekey-4a8363e73cc0d0ab0835275c870bfcb6.js"></script>
+
+    <script type="text/javascript" src="https://unespar.edu.br/portal_javascripts/Sunburst%20Theme/resourceplone.formwidget.contenttreecontenttree-cachekey-a4709e9fb10093ec48ba9671d2b1d201.js"></script>
+
+    <script type="text/javascript" src="https://unespar.edu.br/portal_javascripts/Sunburst%20Theme/resourcecollective.js.bootstrapjsbootstrap.min-cachekey-97522b4b010891e48edfe56649be960f.js"></script>
+
+    <script type="text/javascript" src="https://unespar.edu.br/portal_javascripts/Sunburst%20Theme/jquery.autocomplete.min-cachekey-25132127628ee9a0ec478f97702e7908.js"></script>
+
+       <!--[if lte IE 8]>
+     
+    <script type="text/javascript" src="https://unespar.edu.br/portal_javascripts/Sunburst%20Theme/resourcecollective.pollsjsexcanvas.min-cachekey-16a8011205f69e1180f5ff151ee991f4.js"></script>
+       <![endif]-->
+     
+
+    <script type="text/javascript" src="https://unespar.edu.br/portal_javascripts/Sunburst%20Theme/resourcecollective.pollsjspolls-cachekey-80d3a22aad09719c60b05ee9ccca00d8.js"></script>
+
+    <script type="text/javascript" src="https://unespar.edu.br/portal_javascripts/Sunburst%20Theme/@@legendothers_translation.js"></script>
+
+    <script type="text/javascript" src="https://unespar.edu.br/portal_javascripts/Sunburst%20Theme/resourcecollective.pollsjscollective.poll-cachekey-d6726b46982c494f22cb7137f03dc0d1.js"></script>
+
+    <script type="text/javascript" src="https://unespar.edu.br/portal_javascripts/Sunburst%20Theme/resourcejquery.cookie-cachekey-5eab4550b78d2435dc79ad1cf4cf1505.js"></script>
+
+
+<title>img —  Universidade Estadual do Paraná</title>
+
+<link rel="http://purl.org/dc/terms/subject http://schema.org/about http://xmlns.com/foaf/0.1/primaryTopic" href="http://vocab.e.gov.br/2011/03/vcge#esquema">
+        
+    <link rel="author" href="https://unespar.edu.br/author/" title="Informações do Autor">
+
+
+    <link rel="canonical" href="https://unespar.edu.br/portal_resources/theme/tema-unespar-plone/img">
+
+    
+    
+
+
+<script type="text/javascript">
+        jQuery(function($){
+            if (typeof($.datepicker) != "undefined"){
+              $.datepicker.setDefaults(
+                jQuery.extend($.datepicker.regional['pt-BR'],
+                {dateFormat: 'dd/mm/yy'}));
+            }
+        });
+        </script>
+
+
+
+
+    <link rel="search" href="https://unespar.edu.br/@@search" title="Buscar neste site">
+
+
+
+        
+        
+        
+        
+        
+
+        
+        <meta name="generator" content="Plone - http://plone.org">
+    
+
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+    <link rel="shortcut icon" href="/++theme++tema-unespar-plone/img/favicon.ico" type="image/x-icon">
+    <link rel="apple-touch-icon" href="/++theme++tema-unespar-plone/img/touch_icon.png">
+
+    <!-- Plone CSS - only for preview, will be removed in rules.xml -->
+    
+
+    <!-- Theme CSS - only for preview, will be removed in rules and added in CSS registry -->
+    
+    <link media="all" href="/++theme++tema-unespar-plone/css/style.css" type="text/css" rel="stylesheet">
+</head>
+
+<body dir="ltr" class="template-default_error_message portaltype-plone-site site-UNESPAR section-portal_resources subsection-theme subsection-theme-tema-unespar-plone subsection-theme-tema-unespar-plone-img userrole-anonymous"><div id="wrapper">
+
+        <!-- HEADER -->
+
+        <div id="header" role="banner">
+            <div>
+                <ul id="accessibility">
+                    <li>
+                        <a accesskey="1" href="#acontent" id="link-conteudo">
+                            Ir para o conteúdo
+                            <span>1</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a accesskey="2" href="#anavigation" id="link-navegacao">
+                            Ir para o menu
+                            <span>2</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a accesskey="3" href="#SearchableText" id="link-buscar">
+                            Ir para a busca
+                            <span>3</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a accesskey="4" href="#afooter" id="link-rodape">
+                            Ir para o rodapé
+                            <span>4</span>
+                        </a>
+                    </li>
+                </ul>
+                <!--
+            <ul id="language">
+                <li class="language-es">
+                    <a href="#">Espa&#241;ol</a>
+                </li>
+                <li class="language-en">
+                    <a href="#">English</a>
+                </li>
+            </ul>
+            -->
+            <ul id="portal-siteactions">  
+                <img src="/++theme++tema-unespar-plone/img/icon-acessibilidade.png" height="15px">
+                <li id="siteaction-accessibility">
+                    <a href="https://www.unespar.edu.br/acessibilidade" target="_top" accesskey="5">Acessibilidade</a>
+                </li>
+                <li>
+                    <a href="#" name="increase-font" id="increase-font"><img src="/++theme++tema-unespar-plone/img/fonte-mais.png" height="13px"></a>
+                
+                    <a href="#" name="normal-font" id="normal-font"><img src="/++theme++tema-unespar-plone/img/fonte-normal.png" height="13px"></a>
+                
+                    <a href="#" name="decrease-font" id="decrease-font"><img src="/++theme++tema-unespar-plone/img/fonte-menos.png" height="13px"></a>
+                </li>
+                <li id="siteaction-contraste">
+                    <a href="#" accesskey="6"><img src="/++theme++tema-unespar-plone/img/contraste.png" height="13px"></a>
+                </li>
+                <li id="siteaction-mapadosite">
+                    <a href="https://www.unespar.edu.br/mapadosite" accesskey="7">Mapa do Site</a>
+                </li>
+            </ul>
+
+            <div id="logo">
+    <a id="portal-logo" title="" href="https://unespar.edu.br">
+            <span id="portal-title-1"></span>
+            <h1 id="portal-title" class="luongo">Universidade Estadual do Paraná</h1>
+            <span id="portal-description">Ensino Superior Público, Gratuito e de Qualidade</span>
+    </a>
+</div>
+
+            <div id="portal-searchbox">
+
+    <form id="nolivesearchGadget_form" action="https://unespar.edu.br/@@busca">
+        <fieldset class="LSBox">
+            <legend class="hiddenStructure">Buscar no portal</legend>
+            <label class="hiddenStructure" for="nolivesearchGadget">Busca</label>
+
+            <input name="SearchableText" type="text" size="18" title="Search Site" placeholder="Buscar no portal" class="searchField" id="nolivesearchGadget">
+
+            <input class="searchButton" type="submit" value="Buscar">
+
+            
+
+            <div class="LSResult" id="LSResult"><div class="LSShadow" id="LSShadow"></div></div>
+        </fieldset>
+    </form>
+
+    
+
+</div>
+
+            <div id="social-icons">
+                <ul><li id="portalredes-facebook" class="portalredes-item">
+                <a href="http://facebook.com/UnesparOficial">Facebook</a>
+            </li><li id="portalredes-twitter" class="portalredes-item">
+                <a href="https://twitter.com/UnesparOficial">Twitter</a>
+            </li><li id="portalredes-instagram" class="portalredes-item">
+                <a href="http://instagram.com/unespar">Instagram</a>
+            </li><li id="portalredes-youtube" class="portalredes-item">
+                <a href="http://youtube.com/@unesparoficial">YouTube</a>
+            </li></ul>
+            </div>
+
+        </div>
+        <div id="sobre">
+            <ul><li id="portalservicos-pro-reitorias" class="portalservicos-item"><a href="https://unespar.edu.br/servicos/pro-reitorias" title="Pró-Reitorias">Pró-Reitorias</a></li><li id="portalservicos-apucarana" class="portalservicos-item"><a href="https://unespar.edu.br/servicos/apucarana" title="Apucarana">Apucarana</a></li><li id="portalservicos-campo-mourao" class="portalservicos-item"><a href="https://unespar.edu.br/servicos/campo-mourao" title="Campo Mourão">Campo Mourão</a></li><li id="portalservicos-curitiba-i" class="portalservicos-item"><a href="https://unespar.edu.br/servicos/curitiba-i" title="Curitiba I">Curitiba I</a></li><li id="portalservicos-curitiba-ii" class="portalservicos-item"><a href="https://unespar.edu.br/servicos/curitiba-ii" title="Curitiba II">Curitiba II</a></li><li id="portalservicos-paranagua" class="portalservicos-item"><a href="https://unespar.edu.br/servicos/paranagua" title="Paranaguá">Paranaguá</a></li><li id="portalservicos-paranavai" class="portalservicos-item"><a href="https://unespar.edu.br/servicos/paranavai" title="Paranavaí">Paranavaí</a></li><li id="portalservicos-uniao-da-vitoria" class="portalservicos-item"><a href="https://unespar.edu.br/servicos/uniao-da-vitoria" title="União da Vitória">União da Vitória</a></li><li id="portalservicos-guatupe" class="portalservicos-item"><a href="https://unespar.edu.br/servicos/guatupe" title="Guatupê">Guatupê</a></li></ul>
+        </div>
+    </div>
+
+    <!-- content -->
+
+    <div id="main" role="main">
+    <div id="plone-content">
+
+        <!-- Demo Plone Content -->
+
+        <div id="portal-columns" class="row">
+
+            <div id="viewlet-above-content"><div id="portal-breadcrumbs">
+    <span id="breadcrumbs-you-are-here">Você está aqui:</span>
+    <span id="breadcrumbs-home">
+        <a href="https://unespar.edu.br">Página Inicial</a>
+        <span class="breadcrumbSeparator">
+            &gt;
+            
+        </span>
+    </span>
+    <span dir="ltr" id="breadcrumbs-1">
+        
+            <a href="https://unespar.edu.br/portal_resources">portal_resources</a>
+            <span class="breadcrumbSeparator">
+                &gt;
+                
+            </span>
+            
+         
+    </span>
+    <span dir="ltr" id="breadcrumbs-2">
+        
+            <a href="https://unespar.edu.br/portal_resources/theme">theme</a>
+            <span class="breadcrumbSeparator">
+                &gt;
+                
+            </span>
+            
+         
+    </span>
+    <span dir="ltr" id="breadcrumbs-3">
+        
+            <a href="https://unespar.edu.br/portal_resources/theme/tema-unespar-plone">tema-unespar-plone</a>
+            <span class="breadcrumbSeparator">
+                &gt;
+                
+            </span>
+            
+         
+    </span>
+    <span dir="ltr" id="breadcrumbs-4">
+        
+            
+            
+            <span id="breadcrumbs-current">img</span>
+         
+    </span>
+
+</div>
+</div>
+
+            <!-- Column 1 -->
+            <div id="navigation">
+                <a name="anavigation" id="anavigation"></a>
+                <span class="menuTrigger">Menu</span>
+                </div>
+
+            <!-- Conteudo -->
+            <div id="portal-column-content" class="cell width-full position-0">
+                <a name="acontent" id="acontent"></a>
+
+                <div class="">
+
+                    
+
+                    
+
+    <dl class="portalMessage info" id="kssPortalMessage" style="display:none">
+        <dt>Info</dt>
+        <dd></dd>
+    </dl>
+
+    
+
+
+                    
+                        <div id="content">
+
+                            
+
+                            
+
+        
+
+            
+
+                
+
+                <h1 class="documentFirstHeading">Desculpe, mas esta página não existe…</h1>
+
+                <div id="content-core">
+                    <p>Pedimos desculpas pelo inconveniente, mas a página que você estava tentando acessar não existe neste endereço. Você pode usar os links abaixo para encontrar o que está procurando.</p>
+
+                    <p>Se você está certo que o endereço informado está correto mas está encontrando um erro, por favor contate o <span>
+                        <a href="https://unespar.edu.br/contact-info">Administração do Site</a></span>.</p>
+
+                    <p>Obrigado.</p>
+
+                    <!-- Offer search results for suggestions -->
+                    
+
+                        <h3>Você poderia estar procurando por…</h3>
+
+                        <dl>
+
+                        
+
+                        
+                            
+                                <dt class="contenttype-document">
+                                  
+                                   <a href="https://unespar.edu.br/a_unespar/diplomas" class="state-published">Diplomas</a>
+
+                                    <span class="discreet">por admin, em 01/10/2025 16h08</span>
+
+                                </dt>
+
+                                <dd></dd>
+
+                            
+                        
+                        
+                            
+                                <dt class="contenttype-document">
+                                  
+                                   <a href="https://unespar.edu.br/a_reitoria/atos-oficiais/cad/pauta_online/2017-2a-sessao-09-05-campo-mourao/convocacao" class="state-published">Convocação 002/2017 - CAD</a>
+
+                                    <span class="discreet">por jeferson.magalhaes, em 17/08/2017 16h42</span>
+
+                                </dt>
+
+                                <dd></dd>
+
+                            
+                        
+                        
+                            
+                                <dt class="contenttype-document">
+                                  
+                                   <a href="https://unespar.edu.br/a_reitoria/atos-oficiais/cad/pauta_online/2017-3a-sessao-12-09-curitiba-i/2017-3a-sessao-12-09-curitiba-i" class="state-published">2017 - 3ª sessão 12/09 Curitiba I</a>
+
+                                    <span class="discreet">por jeferson.magalhaes, em 26/09/2017 14h30</span>
+
+                                </dt>
+
+                                <dd></dd>
+
+                            
+                        
+                        
+                            
+                                <dt class="contenttype-document">
+                                  
+                                   <a href="https://unespar.edu.br/a_reitoria/atos-oficiais/cad/pauta_online/2018-1a-sessao-20-02-c-mourao/convocacao-001-2018-cad-20-02-campo-mourao" class="state-published">Convocação 001/2018-CAD 20/02 Campo Mourão</a>
+
+                                    <span class="discreet">por jeferson.magalhaes, em 02/07/2018 08h37</span>
+
+                                </dt>
+
+                                <dd></dd>
+
+                            
+                        
+                        
+                            
+                                <dt class="contenttype-folder">
+                                  
+                                   <a href="https://unespar.edu.br/imagens/img" class="state-published">img</a>
+
+                                    <span class="discreet">por admin, em 27/10/2015 21h49</span>
+
+                                </dt>
+
+                                <dd></dd>
+
+                            
+                        
+                        
+                            
+                                <dt class="contenttype-document">
+                                  
+                                   <a href="https://unespar.edu.br/a_reitoria/atos-oficiais/cepe/pauta_online/2017-4a-sessao-19-12-curitiba/convocacao-004-2017-cepe" class="state-published">Convocação 004/2017 - CEPE</a>
+
+                                    <span class="discreet">por jeferson.magalhaes, em 02/07/2018 08h40</span>
+
+                                </dt>
+
+                                <dd></dd>
+
+                            
+                        
+                        
+                            
+                                <dt class="contenttype-document">
+                                  
+                                   <a href="https://unespar.edu.br/a_reitoria/atos-oficiais/cepe/pauta_online/2017-2a-sessao-21-06-u-vitoria/convocacao-002-2017-cepe" class="state-published">Convocação 002/2017 - CEPE</a>
+
+                                    <span class="discreet">por jeferson.magalhaes, em 17/08/2017 15h51</span>
+
+                                </dt>
+
+                                <dd></dd>
+
+                            
+                        
+                        
+                            
+                                <dt class="contenttype-document">
+                                  
+                                   <a href="https://unespar.edu.br/a_reitoria/atos-oficiais/cad/pauta_online/2017-4a-sessao-13-12-paranavai/convocacao-004-cad" class="state-published">Convocação 004-CAD</a>
+
+                                    <span class="discreet">por jeferson.magalhaes, em 02/07/2018 08h38</span>
+
+                                </dt>
+
+                                <dd></dd>
+
+                            
+                        
+                        
+                            
+                                <dt class="contenttype-document">
+                                  
+                                   <a href="https://unespar.edu.br/paranafalaingles/equipe" class="state-published">Equipe</a>
+
+                                    <span class="discreet">por cassio.ceniz, em 03/04/2025 10h11</span>
+
+                                </dt>
+
+                                <dd></dd>
+
+                            
+                        
+                        
+                            
+                                <dt class="contenttype-document">
+                                  
+                                   <a href="https://unespar.edu.br/a_reitoria/atos-oficiais/cad/pauta_online/2017-1a-sessao-do-cad/convocacao-001-2017-cad" class="state-published">Convocação 001/2017 - CAD</a>
+
+                                    <span class="discreet">por jeferson.magalhaes, em 22/08/2017 11h16</span>
+
+                                </dt>
+
+                                <dd></dd>
+
+                            
+                        
+
+                        </dl>
+
+                    
+                </div>
+            
+
+        
+
+        
+        
+
+
+                        </div>
+                    
+
+                    
+                </div>
+
+                <div id="viewlet-below-content">
+
+
+</div>
+
+            </div>
+
+            <!-- Column 2-->
+
+            
+
+        </div>
+
+        <!-- /Demo Plone Content -->
+
+    </div>
+
+    <div class="clear"></div>
+    <div id="voltar-topo">
+        <a href="#wrapper">Voltar para o topo</a>
+    </div>
+
+</div>
+
+<!-- Footer -->
+<div id="footer" role="contentinfo">
+    <a name="afooter" id="afooter"></a>
+    
+    <div id="doormat-container" class="columns-4">
+
+  
+  <div class="doormatColumn column-0">
+    
+    <dl class="doormatSection">
+      <dt class="doormatSectionHeader">Ingresso</dt>
+      <dd class="doormatSectionBody">
+        <a href="http://vestibular.unespar.edu.br/" class="external-link">Vestibular</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="https://prograd.unespar.edu.br/estude-na-unespar/sisu" class="external-link">SiSU</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="https://prograd.unespar.edu.br/estude-na-unespar/aprova-parana" class="external-link">Aprova Paraná</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://www.unespar.edu.br/matriculas/provar" class="external-link">Provar</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://www.unespar.edu.br/matriculas" class="external-link">Portadores de Diploma</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://www.unespar.edu.br/matriculas" class="external-link">Desistentes</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://www.unespar.edu.br/matriculas" class="external-link">Trancados</a>
+        
+      </dd>
+    </dl>
+  </div>
+  <div class="doormatColumn column-1">
+    
+    <dl class="doormatSection">
+      <dt class="doormatSectionHeader">Pró-Reitorias</dt>
+      <dd class="doormatSectionBody">
+        <a href="http://prograd.unespar.edu.br/" class="external-link">PROGRAD </a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://prppg.unespar.edu.br" class="external-link">PRPPG</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://proec.unespar.edu.br" class="external-link">PROEC</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://praf.unespar.edu.br" class="external-link">PRAF</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://proplan.unespar.edu.br" class="external-link">PROPLAN</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://progesp.unespar.edu.br" class="external-link">PROGESP</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://propedh.unespar.edu.br" class="external-link">PROPEDH</a>
+        
+      </dd>
+    </dl>
+  </div>
+  <div class="doormatColumn column-2">
+    
+    <dl class="doormatSection">
+      <dt class="doormatSectionHeader">Serviços</dt>
+      <dd class="doormatSectionBody">
+        <a href="http://biblioteca.unespar.edu.br" class="external-link">Biblioteca</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://certificados.unespar.edu.br/" class="external-link">Certificados</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="https://outlook.office365.com/owa/?realm=unespar.edu.br" class="external-link">E-mail - Office365</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://www.unespar.edu.br/e-protocolo-digital" class="external-link">E-protocolo Digital</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://www.unespar.edu.br/horario-de-atendimento/" class="external-link">Horário de Atendimento</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://www.unespar.edu.br/ramais" class="external-link">Lista de Ramais</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://moodle.unespar.edu.br" class="external-link">Moodle - Unespar</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://unespar.edu.br/sic" class="external-link">Perguntas Frequentes</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="https://qrcode.unespar.edu.br/" class="external-link">QRCode</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://www.aluno.siges.pr.gov.br/bna_ies/" class="external-link">Siges - Aluno</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="https://www.unespar.edu.br/a_unespar/protocolo-externo-de-solicitacao" class="external-link">Siges - Comunidade Externa</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="http://www.siges.pr.gov.br/sere_ies/login.do" class="external-link">Siges - Professor</a>
+        
+      </dd>
+    </dl>
+  </div>
+  <div class="doormatColumn column-3">
+    
+    <dl class="doormatSection">
+      <dt class="doormatSectionHeader">Sobre o site</dt>
+      <dd class="doormatSectionBody">
+        <a href="https://unespar.edu.br/acessibilidade" class="external-link">Acessibilidade</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="https://unespar.edu.br/mapadosite" class="external-link">Mapa do site</a>
+        
+      </dd>
+    </dl>
+    <dl class="doormatSection">
+      <dt class="doormatSectionHeader">Redes sociais</dt>
+      <dd class="doormatSectionBody">
+        <a href="https://www.facebook.com/UnesparOficial" class="external-link">Facebook</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="https://www.instagram.com/unespar/" class="external-link">Instagram</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="https://www.tiktok.com/@unespar" class="external-link">Tiktok</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="https://twitter.com/UnesparOficial" class="external-link">Twitter</a>
+        
+      </dd>
+      <dd class="doormatSectionBody">
+        <a href="https://www.youtube.com/@unesparoficial" class="external-link">Youtube</a>
+        
+      </dd>
+    </dl>
+  </div>
+</div>
+    <div class="clear"></div>
+    <div class="footer-logos">
+        <div>
+            <div id="endereco">
+
+                <b>©2026 Universidade Estadual do Paraná - UNESPAR</b><br>
+                Avenida Rio Grande do Norte, 1525<br>
+                87701-020 - Centro - Paranavaí - PR<br>
+                Telefone: (44)3141-4700<br>
+            </div>
+            <div id="logo-pr">
+                <a href="http://www.pr.gov.br" target="_blank"><img src="/++theme++tema-unespar-plone/img/governo-pr.png" title="Governo do Paraná" alt="Governo do Paraná"></a>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="extra-footer">
+    <div align="center" height="20px">
+        Desenvolvido com CMS de código aberto
+    </div>
+</div>
+<script type="text/javascript">
+    window.onload = function() {
+        var elementBody = document.querySelector('body');
+        var elementBtnIncreaseFont = document.getElementById('increase-font');
+        var elementBtnDecreaseFont = document.getElementById('decrease-font');
+        var elementBtnNormalFont = document.getElementById('normal-font');
+        // Padr&#227;o de tamanho, equivale a 100% do valor definido no Body
+        var fontSize = 62.5;
+        // Valor de incremento ou decremento, equivale a 10% do valor do Body
+        var increaseDecrease = 10;
+
+        // Evento de click para aumentar a fonte
+        elementBtnIncreaseFont.addEventListener('click', function(event) {
+            fontSize = fontSize + increaseDecrease;
+            elementBody.style.fontSize = fontSize + '%';
+        });
+
+        // Evento de click para diminuir a fonte
+        elementBtnDecreaseFont.addEventListener('click', function(event) {
+            fontSize = fontSize - increaseDecrease;
+            elementBody.style.fontSize = fontSize + '%';
+        });
+        
+        // Evento de click para diminuir a fonte
+        elementBtnNormalFont.addEventListener('click', function(event) {
+            fontSize = 62.5;
+            elementBody.style.fontSize = fontSize + '%';
+        });
+    }
+</script>
+<!-- /Footer-->
+</div><!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-8FJR0E6QSL"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-8FJR0E6QSL');
+</script>
+
+
+  <script async src="//platform.twitter.com/widgets.js" charset="utf-8">
+</script>
+
+</body>
+</html>

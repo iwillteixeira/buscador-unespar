@@ -1,0 +1,1380 @@
+import { useState, useMemo, useRef, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import * as XLSX from "xlsx";
+import { fetchArpItens, type AdvancedFilters } from "./api/client";
+import { saveToCache, getFromCache, clearCache } from "./utils/indexedDB";
+
+export default function App() {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const [column] = useState("palavra_chave");
+  const [search, setSearch] = useState("");
+  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [orderColumn, setOrderColumn] = useState(3);
+  const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
+  
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
+    status: "vigente",
+  });
+  
+  // Estados temporários dos filtros (só aplicados ao clicar "Buscar")
+  const [tempAdvancedFilters, setTempAdvancedFilters] = useState<AdvancedFilters>({
+    status: "vigente",
+  });
+
+  // Estado para controlar seleção de itens
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
+
+  // Estados para pre-fetch completo
+  const [isLoadingAll, setIsLoadingAll] = useState(false);
+  const [loadProgress, setLoadProgress] = useState(0);
+  const [allData, setAllData] = useState<any[]>([]);
+  const [useCache, setUseCache] = useState(true);
+  const [cancelLoading, setCancelLoading] = useState(false);
+
+  // Estado para modo de busca
+  const [matchMode, setMatchMode] = useState<"exact" | "partial">("partial");
+
+  // Sincronizar scroll horizontal entre as duas barras
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const topScrollContentRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
+
+  const handleTopScroll = () => {
+    if (topScrollRef.current && tableScrollRef.current) {
+      tableScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    }
+  };
+
+  const handleTableScroll = () => {
+    if (topScrollRef.current && tableScrollRef.current) {
+      topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
+    }
+  };
+
+  const { data, isLoading, error, isFetching } = useQuery({
+    queryKey: ["arp", page, column, searchQuery, orderColumn, orderDir, advancedFilters, pageSize],
+    queryFn: () =>
+      fetchArpItens({
+        page,
+        pageSize,
+        column,
+        value: searchQuery,
+        orderColumn,
+        orderDir,
+        advancedFilters,
+      }),
+    enabled: searchQuery.length > 0 && !useCache,
+    retry: 1,
+    placeholderData: (prev) => prev,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Função para carregar todos os dados
+  async function loadAllData() {
+    if (!search.trim()) {
+      alert("Digite uma palavra-chave primeiro!");
+      return;
+    }
+
+    // Verificar cache primeiro
+    const cached = await getFromCache(search);
+    if (cached && cached.items.length > 0) {
+      const useExisting = window.confirm(
+        `Encontrado cache com ${cached.items.length} itens para "${search}". Usar dados em cache?`
+      );
+      if (useExisting) {
+        setAllData(cached.items);
+        setUseCache(true);
+        setSearchQuery(search);
+        return;
+      }
+    }
+
+    setIsLoadingAll(true);
+    setLoadProgress(0);
+    const allItems: any[] = [];
+    
+    try {
+      // Primeira requisição para saber o total
+      const firstResponse = await fetchArpItens({
+        page: 1,
+        pageSize: 100,
+        column,
+        value: search,
+        orderColumn: 3,
+        orderDir: "asc",
+        advancedFilters: { status: "vigente" },
+      });
+
+      const totalRecords = firstResponse.recordsFiltered;
+      const totalPages = Math.ceil(totalRecords / 100);
+      
+      if (totalRecords > 10000) {
+        const proceed = window.confirm(
+          `⚠️ Foram encontrados ${totalRecords} registros! Isso pode demorar vários minutos. Continuar?`
+        );
+        if (!proceed) {
+          setIsLoadingAll(false);
+          return;
+        }
+      }
+
+      allItems.push(...firstResponse.data);
+      setLoadProgress(Math.round((1 / totalPages) * 100));
+
+      // Buscar todas as páginas
+      for (let i = 2; i <= totalPages; i++) {
+        const response = await fetchArpItens({
+          page: i,
+          pageSize: 100,
+          column,
+          value: search,
+          orderColumn: 3,
+          orderDir: "asc",
+          advancedFilters: { status: "vigente" },
+        });
+        
+        allItems.push(...response.data);
+        setLoadProgress(Math.round((i / totalPages) * 100));
+
+        // Pequeno delay para não sobrecarregar a API
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+
+      // Salvar no cache
+      await saveToCache(search, allItems);
+      
+      setAllData(allItems);
+      setUseCache(true);
+      setSearchQuery(search);
+      alert(`✅ ${allItems.length} itens carregados e salvos em cache!`);
+      
+    } catch (err) {
+      console.error("Erro ao carregar todos os dados:", err);
+      alert("❌ Erro ao carregar dados. Tente novamente.");
+    } finally {
+      setIsLoadingAll(false);
+      setLoadProgress(0);
+    }
+  }
+
+  // Filtrar por múltiplos códigos PDM se especificado no filtro avançado
+  const results = useMemo(() => {
+    const rawResults = useCache ? allData : (data?.data || []);
+    
+    if (rawResults.length === 0) return [];
+
+    // Aplicar filtros avançados
+    let filtered = rawResults;
+
+    // Filtro de código PDM múltiplo
+    const pdmFilter = advancedFilters.codigoPdm?.trim();
+    if (pdmFilter) {
+      const pdmCodes = pdmFilter.split(',').map(code => code.trim()).filter(code => code.length > 0);
+      if (pdmCodes.length > 0) {
+        filtered = filtered.filter(row => 
+          pdmCodes.some(code => row.codigo_pdm?.includes(code))
+        );
+      }
+    }
+
+    // Aplicar match exato/parcial se estiver usando cache
+    if (useCache && searchQuery) {
+      const searchLower = searchQuery.toLowerCase();
+      
+      // Calcular score de relevância para cada item
+      filtered = filtered.map(item => {
+        const desc = (item.descricaoDetalhada || item.descricaodetalhada || '').toLowerCase();
+        const pdmDesc = (item.descricao_pdm || item.descricaoPdm || '').toLowerCase();
+        const text = `${desc} ${pdmDesc}`;
+        
+        let score = 0;
+        
+        // Match exato de palavra completa (+10 pontos)
+        const words = text.split(' ');
+        if (words.some(word => word.toLowerCase() === searchLower)) {
+          score += 10;
+        }
+        
+        // Palavra no início (+5 pontos)
+        if (text.startsWith(searchLower)) {
+          score += 5;
+        }
+        
+        // Match parcial (+1 ponto)
+        if (text.includes(searchLower)) {
+          score += 1;
+        }
+        
+        // Descrição mais curta = mais relevante
+        score += Math.max(0, 3 - text.length / 100);
+        
+        return { ...item, _score: score, _hasExactMatch: wordRegex.test(text) };
+      });
+
+      // Filtrar baseado no modo
+      if (matchMode === "exact") {
+        filtered = filtered.filter(item => item._hasExactMatch);
+      } else {
+        // Modo parcial: mostrar todos mas ordenar por relevância
+        filtered = filtered.sort((a, b) => (b._score || 0) - (a._score || 0));
+      }
+    }
+
+    return filtered;
+  }, [useCache, allData, data?.data, advancedFilters.codigoPdm, searchQuery, matchMode]);
+
+  const totalRecords = useCache ? allData.length : (data?.recordsFiltered || 0);
+  const totalPages = Math.ceil(totalRecords / pageSize);
+  const filteredCount = results.length;
+  const displayedResults = useCache ? results.slice((page - 1) * pageSize, page * pageSize) : results;
+
+  // Sincronizar largura da barra de scroll superior com a tabela
+  useEffect(() => {
+    if (tableRef.current && topScrollContentRef.current) {
+      topScrollContentRef.current.style.width = `${tableRef.current.scrollWidth}px`;
+    }
+  }, [results]);
+
+  function handleSearch() {
+    if (!search.trim()) return;
+    setSearchQuery(search);
+    setAdvancedFilters(tempAdvancedFilters);
+    setPage(1);
+    setSelectedItems(new Set());
+    setUseCache(false); // Volta para busca normal
+  }
+
+  function handleSort(columnIndex: number) {
+    if (orderColumn === columnIndex) {
+      setOrderDir(orderDir === "asc" ? "desc" : "asc");
+    } else {
+      setOrderColumn(columnIndex);
+      setOrderDir("asc");
+    }
+    setPage(1);
+    setSelectedItems(new Set()); // Limpa seleção ao mudar ordenação
+  }
+
+  function handleAdvancedFilterChange(field: keyof AdvancedFilters, value: string) {
+    setTempAdvancedFilters(prev => ({ ...prev, [field]: value }));
+  }
+
+  function clearAdvancedFilters() {
+    setTempAdvancedFilters({ status: "vigente" });
+    setAdvancedFilters({ status: "vigente" });
+    setSelectedItems(new Set()); // Limpa seleção ao limpar filtros
+  }
+
+  function toggleSelectAll() {
+    if (selectedItems.size === results.length) {
+      setSelectedItems(new Set());
+    } else {
+      setSelectedItems(new Set(results.map((_, idx) => idx)));
+    }
+  }
+
+  function toggleSelectItem(idx: number) {
+    const newSelected = new Set(selectedItems);
+    if (newSelected.has(idx)) {
+      newSelected.delete(idx);
+    } else {
+      newSelected.add(idx);
+    }
+    setSelectedItems(newSelected);
+  }
+
+  function exportExcel() {
+    const itemsToExport = selectedItems.size > 0 
+      ? results.filter((_, idx) => selectedItems.has(idx))
+      : results;
+    
+    if (itemsToExport.length === 0) {
+      alert("Nenhum item selecionado para exportar!");
+      return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(itemsToExport);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "ARP");
+    XLSX.writeFile(wb, "arp-filtrado.xlsx");
+  }
+
+  const SortIcon = ({ colIndex }: { colIndex: number }) => {
+    if (orderColumn !== colIndex) return <span style={{ color: "#ccc" }}>⇅</span>;
+    return <span>{orderDir === "asc" ? "↑" : "↓"}</span>;
+  };
+
+  const activeFiltersCount = Object.entries(tempAdvancedFilters).filter(
+    ([key, value]) => value && key !== "status"
+  ).length;
+
+  return (
+    <div style={{ minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+      {/* Header UNESPAR */}
+      <header style={{
+        backgroundImage: "linear-gradient(#000000 0%, #D8D8D8 0%, #FFFFFF 75%)",
+        color: "#000",
+        padding: "20px",
+        marginBottom: 20,
+        boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+      }}>
+        <div style={{ 
+          maxWidth: "100%", 
+          margin: "0 auto",
+          display: "flex",
+          alignItems: "center",
+          gap: 20
+        }}>
+          <img 
+            src="https://unespar.edu.br/++theme++tema-unespar-plone/img/logo-unespar.png" 
+            alt="UNESPAR"
+            style={{ height: 60 }}
+            onError={(e) => {
+              // Fallback se a imagem não carregar
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+          <div style={{ color: "#000" }}>
+            <h1 style={{ margin: 0, fontSize: 24, fontWeight: "bold", color: "#000" }}>
+              Buscador ARP - Sistema de Compras
+            </h1>
+            <p style={{ margin: "5px 0 0 0", fontSize: 14, color: "#333" }}>
+              Universidade Estadual do Paraná
+            </p>
+          </div>
+        </div>
+      </header>
+
+      {/* Barra decorativa UNESPAR */}
+      <div style={{
+        height: "30px",
+        background: "#002661",
+        borderTop: "3px solid #007F3D",
+        marginBottom: 20
+      }}></div>
+
+      <div style={{ padding: 20, fontFamily: "system-ui, sans-serif", maxWidth: "100%", margin: "0 auto" }}>
+      <h2 style={{ color: "#1e5a3c", marginTop: 0 }}>ARP – Busca por Palavra-chave</h2>
+
+      <div style={{ display: "flex", gap: 10, marginBottom: 15, flexWrap: "wrap", alignItems: "center" }}>
+        <label style={{ fontSize: 16 }}>
+          <strong>Palavra-chave:</strong>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                handleSearch();
+              }
+            }}
+            placeholder="Digite e pressione Enter..."
+            style={{ marginLeft: 5, padding: "6px 12px", width: 300, fontSize: 15 }}
+            disabled={isFetching}
+          />
+        </label>
+
+        <button
+          onClick={handleSearch}
+          disabled={!search.trim() || isFetching || isLoadingAll}
+          style={{ 
+            padding: "6px 20px", 
+            fontWeight: "bold",
+            fontSize: 15,
+            backgroundColor: (isFetching || isLoadingAll) ? "#ccc" : "#002661",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            cursor: (isFetching || isLoadingAll) ? "not-allowed" : "pointer"
+          }}
+        >
+          {isFetching ? "⏳ Buscando..." : "🔍 Buscar (Normal)"}
+        </button>
+
+        <button
+          onClick={loadAllData}
+          disabled={!search.trim() || isLoadingAll || isFetching}
+          style={{ 
+            padding: "6px 20px",
+            fontWeight: "bold",
+            fontSize: 15,
+            backgroundColor: isLoadingAll ? "#ccc" : "#2d7a50",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            cursor: isLoadingAll ? "not-allowed" : "pointer"
+          }}
+        >
+          {isLoadingAll ? `⏳ ${loadProgress}%` : "📦 Carregar TODOS"}
+        </button>
+
+        {isLoadingAll && (
+          <button
+            onClick={() => setCancelLoading(true)}
+            style={{ 
+              padding: "6px 16px",
+              fontSize: 14,
+              backgroundColor: "#dc3545",
+              color: "white",
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer"
+            }}
+          >
+            ❌ Cancelar
+          </button>
+        )}
+
+        <button
+          onClick={async () => {
+            if (window.confirm("Limpar todo o cache de dados?")) {
+              await clearCache();
+              setAllData([]);
+              setUseCache(false);
+              alert("Cache limpo!");
+            }
+          }}
+          style={{ 
+            padding: "6px 16px",
+            fontSize: 14,
+            backgroundColor: "#6c757d",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer"
+          }}
+        >
+          🗑️ Limpar Cache
+        </button>
+
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          disabled={isLoadingAll}
+          style={{ 
+            padding: "6px 20px",
+            fontSize: 15,
+            backgroundColor: "#007F3D",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            position: "relative"
+          }}
+        >
+          {showAdvanced ? "▲" : "▼"} Filtros Avançados
+          {activeFiltersCount > 0 && (
+            <span style={{
+              position: "absolute",
+              top: -5,
+              right: -5,
+              backgroundColor: "#dc3545",
+              color: "white",
+              borderRadius: "50%",
+              padding: "2px 6px",
+              fontSize: 11,
+              fontWeight: "bold"
+            }}>
+              {activeFiltersCount}
+            </span>
+          )}
+        </button>
+
+        <label style={{ fontSize: 14 }}>
+          Itens/página:
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+            disabled={isLoadingAll}
+            style={{ marginLeft: 5, padding: "6px", borderRadius: 4, border: "1px solid #ced4da" }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </label>
+
+        {useCache && (
+          <label style={{ fontSize: 14, fontWeight: "bold", color: "#17a2b8" }}>
+            Modo de Busca:
+            <select
+              value={matchMode}
+              onChange={(e) => setMatchMode(e.target.value as "exact" | "partial")}
+              style={{ 
+                marginLeft: 5, 
+                padding: "6px", 
+                borderRadius: 4, 
+                border: "2px solid #1e5a3c",
+                color: "#1e5a3c",
+                fontWeight: "bold"
+              }}
+            >
+              <option value="partial">🔍 Match Parcial (Tudo)</option>
+              <option value="exact">🎯 Match Exato (Palavra completa)</option>
+            </select>
+          </label>
+        )}
+
+        <button
+          disabled={!displayedResults.length}
+          onClick={() => {
+            const count = selectedItems.size > 0 ? selectedItems.size : displayedResults.length;
+            const message = selectedItems.size > 0 
+              ? `Exportar ${count} registro(s) selecionado(s) para Excel?`
+              : `Nenhum item selecionado. Exportar todos os ${count} registros desta página para Excel?`;
+            if (window.confirm(message)) {
+              exportExcel();
+            }
+          }}
+          style={{ 
+            padding: "6px 20px",
+            fontSize: 15,
+            backgroundColor: displayedResults.length ? "#28a745" : "#ccc",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            cursor: displayedResults.length ? "pointer" : "not-allowed"
+          }}
+        >
+          📥 Exportar {selectedItems.size > 0 ? `Selecionados (${selectedItems.size})` : `Página (${displayedResults.length})`}
+        </button>
+      </div>
+
+
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          disabled={isLoadingAll}
+          style={{ 
+            padding: "6px 20px",
+            fontSize: 15,
+            backgroundColor: "#007F3D",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            position: "relative"
+          }}
+        >
+          {showAdvanced ? "▲" : "▼"} Filtros Avançados
+          {activeFiltersCount > 0 && (
+            <span style={{
+              position: "absolute",
+              top: -5,
+              right: -5,
+              backgroundColor: "#dc3545",
+              color: "white",
+              borderRadius: "50%",
+              padding: "2px 6px",
+              fontSize: 11,
+              fontWeight: "bold"
+            }}>
+              {activeFiltersCount}
+            </span>
+          )}
+        </button>
+
+        <label style={{ fontSize: 14 }}>
+          Itens/página:
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setPage(1);
+            }}
+            disabled={isLoadingAll}
+            style={{ marginLeft: 5, padding: "6px", borderRadius: 4, border: "1px solid #ced4da" }}
+          >
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+        </label>
+
+        {useCache && (
+          <label style={{ fontSize: 14, fontWeight: "bold", color: "#17a2b8" }}>
+            Modo de Busca:
+            <select
+              value={matchMode}
+              onChange={(e) => setMatchMode(e.target.value as "exact" | "partial")}
+              style={{ marginLeft: 5, padding: "6px", borderRadius: 4, border: "2px solid #17a2b8" }}
+            >
+              <option value="partial">🔍 Match Parcial (Tudo)</option>
+              <option value="exact">🎯 Match Exato (Palavra completa)</option>
+            </select>
+          </label>
+        )}
+
+        <button
+          disabled={!displayedResults.length}
+          onClick={() => {
+            const count = selectedItems.size > 0 ? selectedItems.size : displayedResults.length;
+            const message = selectedItems.size > 0 
+              ? `Exportar ${count} registro(s) selecionado(s) para Excel?`
+              : `Nenhum item selecionado. Exportar todos os ${count} registros desta página para Excel?`;
+            if (window.confirm(message)) {
+              exportExcel();
+            }
+          }}
+          style={{ 
+            padding: "6px 20px",
+            fontSize: 15,
+            backgroundColor: displayedResults.length ? "#28a745" : "#ccc",
+            color: "white",
+            border: "none",
+            borderRadius: 4,
+            cursor: displayedResults.length ? "pointer" : "not-allowed"
+          }}
+        >
+          📥 Exportar {selectedItems.size > 0 ? `Selecionados (${selectedItems.size})` : `Página (${displayedResults.length})`}
+        </button>
+      </div>
+
+      {useCache && allData.length > 0 && (
+        <div style={{ 
+          padding: 12, 
+          backgroundColor: "#d1ecf1", 
+          border: "1px solid #bee5eb", 
+          borderRadius: 4,
+          color: "#0c5460",
+          fontSize: 14,
+          marginBottom: 10
+        }}>
+          💾 <strong>Cache Ativo:</strong> {allData.length} itens carregados | Filtrados: <strong>{filteredCount}</strong> | 
+          Modo: <strong>{matchMode === "exact" ? "🎯 Match Exato" : "🔍 Match Parcial (Ordenado por relevância)"}</strong>
+        </div>
+      )}
+
+      {isLoadingAll && (
+        <div style={{ 
+          padding: 16, 
+          backgroundColor: "#fff3cd", 
+          border: "1px solid #ffeaa7", 
+          borderRadius: 4,
+          color: "#856404",
+          fontSize: 15,
+          marginBottom: 10
+        }}>
+          <div style={{ marginBottom: 8 }}>
+            ⏳ Carregando dados em lote (1000 itens por requisição, 5 paralelas)...
+          </div>
+          <div style={{ 
+            width: "100%", 
+            backgroundColor: "#e0e0e0", 
+            borderRadius: 10, 
+            overflow: "hidden",
+            height: 25
+          }}>
+            <div style={{ 
+              width: `${loadProgress}%`, 
+              backgroundColor: "#2d7a50", 
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "white",
+              fontWeight: "bold",
+              transition: "width 0.3s"
+            }}>
+              {loadProgress}%
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAdvanced && (
+        <div style={{
+          backgroundColor: "#f8f9fa",
+          border: "1px solid #dee2e6",
+          borderRadius: 4,
+          padding: 16,
+          marginBottom: 15
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={{ margin: 0, fontSize: 16 }}>Filtros Avançados</h3>
+            <button
+              onClick={clearAdvancedFilters}
+              style={{
+                padding: "4px 12px",
+                fontSize: 13,
+                backgroundColor: "#dc3545",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer"
+              }}
+            >
+              Limpar Filtros
+            </button>
+          </div>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Status:</strong>
+              <select
+                value={tempAdvancedFilters.status || "vigente"}
+                onChange={(e) => handleAdvancedFilterChange("status", e.target.value)}
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              >
+                <option value="">Todos</option>
+                <option value="vigente">Vigente</option>
+                <option value="encerrado">Encerrado</option>
+              </select>
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Código Unidade:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.codigoUnidade || ""}
+                onChange={(e) => handleAdvancedFilterChange("codigoUnidade", e.target.value)}
+                placeholder="Ex: 123456"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Modalidade Compra:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.modalidadeCompra || ""}
+                onChange={(e) => handleAdvancedFilterChange("modalidadeCompra", e.target.value)}
+                placeholder="Ex: Pregão"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Descrição Detalhada:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.descricaodetalhada || ""}
+                onChange={(e) => handleAdvancedFilterChange("descricaodetalhada", e.target.value)}
+                placeholder="Buscar na descrição"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Data Fim:</strong>
+              <input
+                type="date"
+                value={tempAdvancedFilters.dataFim || ""}
+                onChange={(e) => handleAdvancedFilterChange("dataFim", e.target.value)}
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Número Ata:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.numeroAta || ""}
+                onChange={(e) => handleAdvancedFilterChange("numeroAta", e.target.value)}
+                placeholder="Ex: 12345"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Número Compra:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.numeroCompra || ""}
+                onChange={(e) => handleAdvancedFilterChange("numeroCompra", e.target.value)}
+                placeholder="Ex: 12345"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Ano Compra:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.anoCompra || ""}
+                onChange={(e) => handleAdvancedFilterChange("anoCompra", e.target.value)}
+                placeholder="Ex: 2024"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Código Item:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.codigoItem || ""}
+                onChange={(e) => handleAdvancedFilterChange("codigoItem", e.target.value)}
+                placeholder="Ex: 12345"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Descrição Item:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.descricaoItem || ""}
+                onChange={(e) => handleAdvancedFilterChange("descricaoItem", e.target.value)}
+                placeholder="Buscar item"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Número Item Compra:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.numeroItemCompra || ""}
+                onChange={(e) => handleAdvancedFilterChange("numeroItemCompra", e.target.value)}
+                placeholder="Ex: 12345"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Esfera:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.esfera || ""}
+                onChange={(e) => handleAdvancedFilterChange("esfera", e.target.value)}
+                placeholder="Ex: Federal"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>UF:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.uf || ""}
+                onChange={(e) => handleAdvancedFilterChange("uf", e.target.value)}
+                placeholder="Ex: PR"
+                maxLength={2}
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da", textTransform: "uppercase" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Município:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.municipio || ""}
+                onChange={(e) => handleAdvancedFilterChange("municipio", e.target.value)}
+                placeholder="Ex: Curitiba"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Código PDM:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.codigoPdm || ""}
+                onChange={(e) => handleAdvancedFilterChange("codigoPdm", e.target.value)}
+                placeholder="Ex: 12345 ou 19766, 19266 (múltiplos)"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+              {tempAdvancedFilters.codigoPdm && tempAdvancedFilters.codigoPdm.includes(',') && (
+                <small style={{ color: "#6c757d", marginTop: 2 }}>
+                  🔍 {tempAdvancedFilters.codigoPdm.split(',').filter(c => c.trim()).length} código(s): {tempAdvancedFilters.codigoPdm.split(',').map(c => c.trim()).filter(c => c).join(', ')}
+                </small>
+              )}
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Descrição PDM:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.descricaoPdm || ""}
+                onChange={(e) => handleAdvancedFilterChange("descricaoPdm", e.target.value)}
+                placeholder="Buscar PDM"
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+          </div>
+
+          <div style={{ marginTop: 12, fontSize: 13, color: "#6c757d" }}>
+            ℹ️ Os filtros avançados são aplicados automaticamente quando você clica em "Buscar"
+          </div>
+        </div>
+      )}
+
+      {!searchQuery && (
+        <div style={{ 
+          padding: 16, 
+          backgroundColor: "#f0f8ff", 
+          border: "1px solid #b8daff", 
+          borderRadius: 4,
+          color: "#004085",
+          fontSize: 15
+        }}>
+          ℹ️ Digite uma <strong>palavra-chave</strong> no campo de busca e clique em "Buscar" (ou pressione Enter)
+          <br />
+          <small>Exemplos: computador, papel, caneta, cafe, etc.</small>
+          <br />
+          <small>Dica: Use os Filtros Avançados para buscar por múltiplos códigos PDM separados por vírgula!</small>
+        </div>
+      )}
+
+      {error && (
+        <div style={{ 
+          padding: 16, 
+          backgroundColor: "#f8d7da", 
+          border: "1px solid #f5c6cb", 
+          borderRadius: 4,
+          color: "#721c24"
+        }}>
+          ❌ Erro ao buscar dados: {error instanceof Error ? error.message : "Erro desconhecido"}
+          <br />
+          <small>Tente novamente ou use outra palavra-chave.</small>
+        </div>
+      )}
+
+      {isFetching && (
+        <div style={{ 
+          padding: 16, 
+          backgroundColor: "#fff3cd", 
+          border: "1px solid #ffeaa7", 
+          borderRadius: 4,
+          color: "#856404",
+          fontSize: 15
+        }}>
+          ⏳ Aguarde... buscando dados da API (pode levar alguns segundos)
+        </div>
+      )}
+
+      {searchQuery && !isFetching && !error && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 10 }}>
+          <p style={{ fontSize: 16, margin: 0 }}>
+            {advancedFilters.codigoPdm?.includes(',') ? (
+              <>Total API: <b>{totalRecords}</b> | Filtrados: <b>{filteredCount}</b> | Página <b>{page}</b> de <b>{totalPages}</b></>
+            ) : (
+              <>Total: <b>{totalRecords}</b> registros | Página <b>{page}</b> de <b>{totalPages}</b></>
+            )}
+          </p>
+          
+          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+            <button
+              onClick={() => setPage(1)}
+              disabled={page === 1 || isFetching}
+              style={{
+                padding: "5px 10px",
+                backgroundColor: page === 1 ? "#e9ecef" : "#007bff",
+                color: page === 1 ? "#6c757d" : "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: page === 1 ? "not-allowed" : "pointer"
+              }}
+            >
+              ⏮ Primeira
+            </button>
+            
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1 || isFetching}
+              style={{
+                padding: "5px 10px",
+                backgroundColor: page === 1 ? "#e9ecef" : "#007bff",
+                color: page === 1 ? "#6c757d" : "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: page === 1 ? "not-allowed" : "pointer"
+              }}
+            >
+              ◀ Anterior
+            </button>
+            
+            <span style={{ padding: "0 10px", fontSize: 15 }}>
+              Página <input 
+                type="number" 
+                min={1} 
+                max={totalPages}
+                value={page}
+                onChange={(e) => {
+                  const newPage = parseInt(e.target.value);
+                  if (newPage >= 1 && newPage <= totalPages) {
+                    setPage(newPage);
+                  }
+                }}
+                style={{ 
+                  width: 60, 
+                  padding: "4px", 
+                  textAlign: "center",
+                  border: "1px solid #ced4da",
+                  borderRadius: 4
+                }}
+              /> de {totalPages}
+            </span>
+            
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages || isFetching}
+              style={{
+                padding: "5px 10px",
+                backgroundColor: page === totalPages ? "#e9ecef" : "#007bff",
+                color: page === totalPages ? "#6c757d" : "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: page === totalPages ? "not-allowed" : "pointer"
+              }}
+            >
+              Próxima ▶
+            </button>
+            
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={page === totalPages || isFetching}
+              style={{
+                padding: "5px 10px",
+                backgroundColor: page === totalPages ? "#e9ecef" : "#007bff",
+                color: page === totalPages ? "#6c757d" : "white",
+                border: "none",
+                borderRadius: 4,
+                cursor: page === totalPages ? "not-allowed" : "pointer"
+              }}
+            >
+              Última ⏭
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isFetching && !isLoadingAll && displayedResults.length > 0 && (
+        <>
+          {/* Barra de scroll superior */}
+          <div 
+            ref={topScrollRef}
+            onScroll={handleTopScroll}
+            style={{ 
+              overflowX: "auto", 
+              overflowY: "hidden",
+              height: 20,
+              marginTop: 12,
+              border: "1px solid #ddd",
+              borderRadius: 4
+            }}
+          >
+            <div ref={topScrollContentRef} style={{ height: 1 }}></div>
+          </div>
+
+          {/* Tabela com scroll */}
+          <div 
+            ref={tableScrollRef}
+            onScroll={handleTableScroll}
+            style={{ 
+              overflowX: "auto", 
+              border: "1px solid #ddd", 
+              borderRadius: 4, 
+              marginTop: 4,
+              maxHeight: "600px",
+              overflowY: "auto"
+            }}
+          >
+            <table ref={tableRef} style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+              <thead>
+                <tr style={{ backgroundColor: "#e9ecef" }}>
+                  <th style={{ 
+                    padding: 8, 
+                    textAlign: "center", 
+                    borderBottom: "2px solid #adb5bd", 
+                    width: 40,
+                    position: "sticky",
+                    top: 0,
+                    backgroundColor: "#e9ecef",
+                    zIndex: 10
+                  }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedItems.size === results.length && results.length > 0}
+                      onChange={toggleSelectAll}
+                      title="Selecionar todos"
+                      style={{ cursor: "pointer" }}
+                    />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(0)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 80,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    Número <SortIcon colIndex={0} />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(1)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 150,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    Unidade Gerenciadora <SortIcon colIndex={1} />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(2)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 100,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    Nº Item Compra <SortIcon colIndex={2} />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(3)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 100, 
+                      backgroundColor: "#c8e6c9",
+                      position: "sticky",
+                      top: 0,
+                      zIndex: 10
+                    }}
+                  >
+                    <strong>Código PDM</strong> <SortIcon colIndex={3} />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(4)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 300,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    Descrição Detalhada <SortIcon colIndex={4} />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(5)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 50,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    UF <SortIcon colIndex={5} />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(6)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 200,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    Fornecedor <SortIcon colIndex={6} />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(7)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 80,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    Qtd Registrada <SortIcon colIndex={7} />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(8)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 80,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    Saldo Adesão <SortIcon colIndex={8} />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(9)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 100,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    Vigência Inicial <SortIcon colIndex={9} />
+                  </th>
+                  <th 
+                    onClick={() => handleSort(10)} 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 100,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    Vigência Final <SortIcon colIndex={10} />
+                  </th>
+                  <th 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      minWidth: 200,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    Descrição PDM
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+              {displayedResults.map((row, idx) => {
+                const hasExactMatch = row._hasExactMatch;
+                const rowStyle = hasExactMatch && useCache 
+                  ? { borderBottom: "1px solid #dee2e6", backgroundColor: idx % 2 === 0 ? "#d4edda" : "#e7f4e4", borderLeft: "3px solid #28a745" }
+                  : { borderBottom: "1px solid #dee2e6", backgroundColor: idx % 2 === 0 ? "#fff" : "#f8f9fa" };
+                
+                return (
+                  <tr key={idx} style={rowStyle}>
+                    <td style={{ padding: 8, textAlign: "center" }}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedItems.has(idx)}
+                        onChange={() => toggleSelectItem(idx)}
+                        style={{ cursor: "pointer" }}
+                      />
+                    </td>
+                    <td style={{ padding: 8 }}>{row.numero || "-"}</td>
+                    <td style={{ padding: 8 }}>{row.unidade_gerenciadora || "-"}</td>
+                    <td style={{ padding: 8 }}>{row.numero_item_compra || "-"}</td>
+                    <td style={{ padding: 8, fontWeight: "bold" }}>{row.codigo_pdm || "-"}</td>
+                    <td style={{ padding: 8 }}>
+                      {row.descricaoDetalhada || row.descricaodetalhada || "-"}
+                      {hasExactMatch && useCache && <span style={{ marginLeft: 8, color: "#28a745", fontWeight: "bold" }}>🎯</span>}
+                    </td>
+                    <td style={{ padding: 8 }}>{row.unidade_federacao || "-"}</td>
+                    <td style={{ padding: 8 }}>{row.fornecedor || "-"}</td>
+                    <td style={{ padding: 8 }}>{row.quantidade_registrada || "-"}</td>
+                    <td style={{ padding: 8 }}>{row.saldo_adesao || "-"}</td>
+                    <td style={{ padding: 8 }}>{row.vigencia_inicial || "-"}</td>
+                    <td style={{ padding: 8 }}>{row.vigencia_final || "-"}</td>
+                    <td style={{ padding: 8 }}>{row.descricao_pdm || row.descricaoPdm || "-"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </>
+      )}
+
+      {!isFetching && !isLoadingAll && searchQuery && displayedResults.length === 0 && !error && (
+        <div style={{ 
+          padding: 16, 
+          backgroundColor: "#e2e3e5", 
+          border: "1px solid #d6d8db", 
+          borderRadius: 4,
+          color: "#383d41"
+        }}>
+          {advancedFilters.codigoPdm ? (
+            <>Nenhum registro encontrado com os códigos PDM: <strong>{advancedFilters.codigoPdm}</strong></>
+          ) : (
+            <>Nenhum registro encontrado com a palavra-chave "<strong>{searchQuery}</strong>". Tente outra palavra.</>
+          )}
+        </div>
+      )}
+
+      {totalPages > 1 && !isFetching && !isLoadingAll && (
+        <div style={{ 
+          padding: 12, 
+          marginTop: 12,
+          backgroundColor: "#e8f5e9", 
+          border: "1px solid #c8e6c9", 
+          borderRadius: 4,
+          color: "#1e5a3c",
+          fontSize: 14
+        }}>
+          ℹ️ Use os botões de navegação acima para ver mais resultados.
+          <br />
+          <small>Clique nos cabeçalhos das colunas para ordenar os dados.</small>
+        </div>
+      )}
+    </div>
+    </div>
+  );
+}
