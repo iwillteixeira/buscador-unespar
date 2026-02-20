@@ -37,6 +37,26 @@ export default function App() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [suggestionPage, setSuggestionPage] = useState(0);
 
+  const [cnpjData, setCnpjData] = useState<Record<string, any>>({});
+  const [loadingCnpj, setLoadingCnpj] = useState<Record<string, boolean>>({});
+
+  const [visibleColumns, setVisibleColumns] = useState({
+    numero: true,
+    unidade_gerenciadora: true,
+    numero_item_compra: true,
+    codigo_pdm: true,
+    descricao_detalhada: true,
+    uf: true,
+    fornecedor: true,
+    telefone: true,
+    email: true,
+    quantidade_registrada: true,
+    saldo_adesao: true,
+    vigencia_inicial: true,
+    vigencia_final: true,
+    descricao_pdm: true
+  });
+
   const topScrollRef = useRef<HTMLDivElement>(null);
   const tableScrollRef = useRef<HTMLDivElement>(null);
   const topScrollContentRef = useRef<HTMLDivElement>(null);
@@ -286,7 +306,11 @@ export default function App() {
   const totalRecords = useCache ? allData.length : (data?.recordsFiltered || 0);
   const totalPages = Math.ceil(totalRecords / pageSize);
   const filteredCount = results.length;
-  const displayedResults = useCache ? results.slice((page - 1) * pageSize, page * pageSize) : results;
+  const displayedResults = (useCache ? results.slice((page - 1) * pageSize, page * pageSize) : results)
+    .filter(row => {
+      const saldo = parseFloat(row.saldo_adesao);
+      return !isNaN(saldo) && saldo !== 0;
+    });
 
   useEffect(() => {
     if (tableRef.current && topScrollContentRef.current) {
@@ -301,6 +325,60 @@ export default function App() {
     setPage(1);
     setSelectedItems(new Set());
     setUseCache(false);
+  }
+
+  function extractCnpj(fornecedor: string): string | null {
+    if (!fornecedor) return null;
+    const cnpjMatch = fornecedor.match(/\d{2}[\.]?\d{3}[\.]?\d{3}[\/]?\d{4}[\-]?\d{2}/);
+    if (!cnpjMatch) return null;
+    return cnpjMatch[0].replace(/[.,\/-]/g, '');
+  }
+
+  async function fetchCnpjData(fornecedor: string, rowIdx: number) {
+    const cnpj = extractCnpj(fornecedor);
+    if (!cnpj) return;
+
+    setLoadingCnpj(prev => ({ ...prev, [rowIdx]: true }));
+
+    try {
+      const [openCnpjResponse, brasilApiResponse] = await Promise.allSettled([
+        fetch(`https://api.opencnpj.org/${cnpj}`),
+        fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`)
+      ]);
+
+      let combinedData: any = {};
+
+      if (openCnpjResponse.status === 'fulfilled' && openCnpjResponse.value.ok) {
+        const data = await openCnpjResponse.value.json();
+        combinedData = { ...combinedData, ...data };
+      }
+
+      if (brasilApiResponse.status === 'fulfilled' && brasilApiResponse.value.ok) {
+        const data = await brasilApiResponse.value.json();
+        combinedData = {
+          ...combinedData,
+          telefone: combinedData.telefone || data.ddd_telefone_1 || data.ddd_telefone_2,
+          email: combinedData.email || data.email,
+          razao_social: data.razao_social,
+          nome_fantasia: data.nome_fantasia,
+          cep: data.cep,
+          municipio: data.municipio,
+          uf: data.uf
+        };
+      }
+
+      if (Object.keys(combinedData).length > 0) {
+        setCnpjData(prev => ({ ...prev, [rowIdx]: combinedData }));
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CNPJ:', error);
+    } finally {
+      setLoadingCnpj(prev => ({ ...prev, [rowIdx]: false }));
+    }
+  }
+
+  function toggleColumnVisibility(columnKey: keyof typeof visibleColumns) {
+    setVisibleColumns(prev => ({ ...prev, [columnKey]: !prev[columnKey] }));
   }
 
   function handleSort(columnIndex: number) {
@@ -1141,6 +1219,216 @@ export default function App() {
 
       {!isFetching && !isLoadingAll && displayedResults.length > 0 && (
         <>
+          <div style={{ 
+            marginTop: 12, 
+            padding: 12, 
+            backgroundColor: "#f8f9fa", 
+            border: "1px solid #dee2e6", 
+            borderRadius: 4 
+          }}>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+              <strong style={{ fontSize: 14, marginRight: 12 }}>👁️ Visibilidade das Colunas:</strong>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              <button
+                onClick={() => toggleColumnVisibility('numero')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.numero ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.numero ? "✓" : "✗"} Número
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('unidade_gerenciadora')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.unidade_gerenciadora ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.unidade_gerenciadora ? "✓" : "✗"} Unidade Gerenciadora
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('numero_item_compra')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.numero_item_compra ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.numero_item_compra ? "✓" : "✗"} Nº Item Compra
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('codigo_pdm')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.codigo_pdm ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.codigo_pdm ? "✓" : "✗"} Código PDM
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('descricao_detalhada')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.descricao_detalhada ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.descricao_detalhada ? "✓" : "✗"} Descrição Detalhada
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('uf')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.uf ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.uf ? "✓" : "✗"} UF
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('fornecedor')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.fornecedor ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.fornecedor ? "✓" : "✗"} Fornecedor
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('telefone')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.telefone ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.telefone ? "✓" : "✗"} Telefone
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('email')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.email ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.email ? "✓" : "✗"} Email
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('quantidade_registrada')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.quantidade_registrada ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.quantidade_registrada ? "✓" : "✗"} Qtd Registrada
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('saldo_adesao')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.saldo_adesao ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.saldo_adesao ? "✓" : "✗"} Saldo Adesão
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('vigencia_inicial')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.vigencia_inicial ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.vigencia_inicial ? "✓" : "✗"} Vigência Inicial
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('vigencia_final')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.vigencia_final ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.vigencia_final ? "✓" : "✗"} Vigência Final
+              </button>
+              <button
+                onClick={() => toggleColumnVisibility('descricao_pdm')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.descricao_pdm ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.descricao_pdm ? "✓" : "✗"} Descrição PDM
+              </button>
+            </div>
+          </div>
+
           <div 
             ref={topScrollRef}
             onScroll={handleTopScroll}
@@ -1189,13 +1477,12 @@ export default function App() {
                       style={{ cursor: "pointer" }}
                     />
                   </th>
+                  {visibleColumns.numero && (
                   <th 
-                    onClick={() => handleSort(0)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
                       userSelect: "none", 
                       minWidth: 80,
                       position: "sticky",
@@ -1204,15 +1491,17 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    Número <SortIcon colIndex={0} />
+                    <span onClick={() => handleSort(0)} style={{ cursor: "pointer" }}>
+                      Número <SortIcon colIndex={0} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.unidade_gerenciadora && (
                   <th 
-                    onClick={() => handleSort(1)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
                       userSelect: "none", 
                       minWidth: 150,
                       position: "sticky",
@@ -1221,15 +1510,17 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    Unidade Gerenciadora <SortIcon colIndex={1} />
+                    <span onClick={() => handleSort(1)} style={{ cursor: "pointer" }}>
+                      Unidade Gerenciadora <SortIcon colIndex={1} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.numero_item_compra && (
                   <th 
-                    onClick={() => handleSort(2)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
                       userSelect: "none", 
                       minWidth: 100,
                       position: "sticky",
@@ -1238,15 +1529,17 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    Nº Item Compra <SortIcon colIndex={2} />
+                    <span onClick={() => handleSort(2)} style={{ cursor: "pointer" }}>
+                      Nº Item Compra <SortIcon colIndex={2} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.codigo_pdm && (
                   <th 
-                    onClick={() => handleSort(3)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
                       userSelect: "none", 
                       minWidth: 100, 
                       backgroundColor: "#c8e6c9",
@@ -1255,15 +1548,17 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    <strong>Código PDM</strong> <SortIcon colIndex={3} />
+                    <span onClick={() => handleSort(3)} style={{ cursor: "pointer" }}>
+                      <strong>Código PDM</strong> <SortIcon colIndex={3} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.descricao_detalhada && (
                   <th 
-                    onClick={() => handleSort(4)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
                       userSelect: "none", 
                       minWidth: 300,
                       position: "sticky",
@@ -1272,15 +1567,17 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    Descrição Detalhada <SortIcon colIndex={4} />
+                    <span onClick={() => handleSort(4)} style={{ cursor: "pointer" }}>
+                      Descrição Detalhada <SortIcon colIndex={4} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.uf && (
                   <th 
-                    onClick={() => handleSort(5)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
                       userSelect: "none", 
                       minWidth: 50,
                       position: "sticky",
@@ -1289,15 +1586,17 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    UF <SortIcon colIndex={5} />
+                    <span onClick={() => handleSort(5)} style={{ cursor: "pointer" }}>
+                      UF <SortIcon colIndex={5} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.fornecedor && (
                   <th 
-                    onClick={() => handleSort(6)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
                       userSelect: "none", 
                       minWidth: 200,
                       position: "sticky",
@@ -1306,15 +1605,55 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    Fornecedor <SortIcon colIndex={6} />
+                    <span onClick={() => handleSort(6)} style={{ cursor: "pointer" }}>
+                      Fornecedor <SortIcon colIndex={6} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.telefone && (
                   <th 
-                    onClick={() => handleSort(7)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
+                      userSelect: "none", 
+                      minWidth: 120,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    <span onClick={() => handleSort(7)} style={{ cursor: "pointer" }}>
+                      Telefone <SortIcon colIndex={7} />
+                    </span>
+                  </th>
+                  )}
+                  {visibleColumns.email && (
+                  <th 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      userSelect: "none", 
+                      minWidth: 200,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    <span onClick={() => handleSort(8)} style={{ cursor: "pointer" }}>
+                      Email <SortIcon colIndex={8} />
+                    </span>
+                  </th>
+                  )}
+                  {visibleColumns.quantidade_registrada && (
+                  <th 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
                       userSelect: "none", 
                       minWidth: 80,
                       position: "sticky",
@@ -1323,15 +1662,17 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    Qtd Registrada <SortIcon colIndex={7} />
+                    <span onClick={() => handleSort(9)} style={{ cursor: "pointer" }}>
+                      Qtd Registrada <SortIcon colIndex={9} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.saldo_adesao && (
                   <th 
-                    onClick={() => handleSort(8)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
                       userSelect: "none", 
                       minWidth: 80,
                       position: "sticky",
@@ -1340,15 +1681,17 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    Saldo Adesão <SortIcon colIndex={8} />
+                    <span onClick={() => handleSort(10)} style={{ cursor: "pointer" }}>
+                      Saldo Adesão <SortIcon colIndex={10} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.vigencia_inicial && (
                   <th 
-                    onClick={() => handleSort(9)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
                       userSelect: "none", 
                       minWidth: 100,
                       position: "sticky",
@@ -1357,15 +1700,17 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    Vigência Inicial <SortIcon colIndex={9} />
+                    <span onClick={() => handleSort(11)} style={{ cursor: "pointer" }}>
+                      Vigência Inicial <SortIcon colIndex={11} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.vigencia_final && (
                   <th 
-                    onClick={() => handleSort(10)} 
                     style={{ 
                       padding: 8, 
                       textAlign: "left", 
                       borderBottom: "2px solid #adb5bd", 
-                      cursor: "pointer", 
                       userSelect: "none", 
                       minWidth: 100,
                       position: "sticky",
@@ -1374,8 +1719,12 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    Vigência Final <SortIcon colIndex={10} />
+                    <span onClick={() => handleSort(12)} style={{ cursor: "pointer" }}>
+                      Vigência Final <SortIcon colIndex={12} />
+                    </span>
                   </th>
+                  )}
+                  {visibleColumns.descricao_pdm && (
                   <th 
                     style={{ 
                       padding: 8, 
@@ -1390,6 +1739,7 @@ export default function App() {
                   >
                     Descrição PDM
                   </th>
+                  )}
                 </tr>
               </thead>
               <tbody>
@@ -1403,18 +1753,64 @@ export default function App() {
                       style={{ cursor: "pointer" }}
                     />
                   </td>
-                  <td style={{ padding: 8 }}>{row.numero || "-"}</td>
-                  <td style={{ padding: 8 }}>{row.unidade_gerenciadora || "-"}</td>
-                  <td style={{ padding: 8 }}>{row.numero_item_compra || "-"}</td>
-                  <td style={{ padding: 8, fontWeight: "bold" }}>{row.codigo_pdm || "-"}</td>
-                  <td style={{ padding: 8 }}>{row.descricaoDetalhada || row.descricaodetalhada || "-"}</td>
-                  <td style={{ padding: 8 }}>{row.unidade_federacao || "-"}</td>
-                  <td style={{ padding: 8 }}>{row.fornecedor || "-"}</td>
-                  <td style={{ padding: 8 }}>{row.quantidade_registrada || "-"}</td>
-                  <td style={{ padding: 8 }}>{row.saldo_adesao || "-"}</td>
-                  <td style={{ padding: 8 }}>{row.vigencia_inicial || "-"}</td>
-                  <td style={{ padding: 8 }}>{row.vigencia_final || "-"}</td>
-                  <td style={{ padding: 8 }}>{row.descricao_pdm || row.descricaoPdm || "-"}</td>
+                  {visibleColumns.numero && <td style={{ padding: 8 }}>{row.numero || "-"}</td>}
+                  {visibleColumns.unidade_gerenciadora && <td style={{ padding: 8 }}>{row.unidade_gerenciadora || "-"}</td>}
+                  {visibleColumns.numero_item_compra && <td style={{ padding: 8 }}>{row.numero_item_compra || "-"}</td>}
+                  {visibleColumns.codigo_pdm && <td style={{ padding: 8, fontWeight: "bold" }}>{row.codigo_pdm || "-"}</td>}
+                  {visibleColumns.descricao_detalhada && <td style={{ padding: 8 }}>{row.descricaoDetalhada || row.descricaodetalhada || "-"}</td>}
+                  {visibleColumns.uf && <td style={{ padding: 8 }}>{row.unidade_federacao || "-"}</td>}
+                  {visibleColumns.fornecedor && <td style={{ padding: 8 }}>{row.fornecedor || "-"}</td>}
+                  {visibleColumns.telefone && (
+                  <td style={{ padding: 8 }}>
+                    {cnpjData[idx] ? (
+                      <div>
+                        <div>{cnpjData[idx].telefone || "-"}</div>
+                        <button 
+                          onClick={() => fetchCnpjData(row.fornecedor, idx)}
+                          style={{
+                            fontSize: 10,
+                            padding: "2px 6px",
+                            marginTop: 4,
+                            cursor: "pointer",
+                            backgroundColor: "#007bff",
+                            color: "white",
+                            border: "none",
+                            borderRadius: 3
+                          }}
+                          disabled={loadingCnpj[idx]}
+                        >
+                          {loadingCnpj[idx] ? "..." : "🔄"}
+                        </button>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => fetchCnpjData(row.fornecedor, idx)}
+                        style={{
+                          padding: "4px 8px",
+                          cursor: "pointer",
+                          backgroundColor: "#28a745",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 3,
+                          fontSize: 12
+                        }}
+                        disabled={loadingCnpj[idx] || !extractCnpj(row.fornecedor)}
+                      >
+                        {loadingCnpj[idx] ? "Carregando..." : "📞 Buscar"}
+                      </button>
+                    )}
+                  </td>
+                  )}
+                  {visibleColumns.email && (
+                  <td style={{ padding: 8 }}>
+                    {cnpjData[idx]?.email || row.email || "-"}
+                  </td>
+                  )}
+                  {visibleColumns.quantidade_registrada && <td style={{ padding: 8 }}>{row.quantidade_registrada || "-"}</td>}
+                  {visibleColumns.saldo_adesao && <td style={{ padding: 8 }}>{row.saldo_adesao || "-"}</td>}
+                  {visibleColumns.vigencia_inicial && <td style={{ padding: 8 }}>{row.vigencia_inicial || "-"}</td>}
+                  {visibleColumns.vigencia_final && <td style={{ padding: 8 }}>{row.vigencia_final || "-"}</td>}
+                  {visibleColumns.descricao_pdm && <td style={{ padding: 8 }}>{row.descricao_pdm || row.descricaoPdm || "-"}</td>}
                 </tr>
               ))}
             </tbody>
