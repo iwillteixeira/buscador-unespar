@@ -147,7 +147,7 @@ export default function App() {
         });
         
         scored.sort((a, b) => b.score - a.score);
-        setPdmSuggestions(scored.slice(0, 18));
+        setPdmSuggestions(scored.slice(0, 48));
         setShowSuggestions(true);
         
       } catch (err) {
