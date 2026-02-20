@@ -98,7 +98,7 @@ export default function App() {
         }
 
         const data = await response.json();
-        const items = Array.isArray(data) ? data.slice(0, 50) : [];
+        const items = Array.isArray(data) ? data.slice(0, 100) : [];
         
         const normalize = (str: string) => 
           str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
