@@ -562,7 +562,7 @@ export default function App() {
               </div>
               {(() => {
                 const itemsPerPage = 6;
-                const totalPages = Math.min(3, Math.ceil(pdmSuggestions.length / itemsPerPage));
+                const totalPages = Math.min(8, Math.ceil(pdmSuggestions.length / itemsPerPage));
                 const startIdx = suggestionPage * itemsPerPage;
                 const endIdx = startIdx + itemsPerPage;
                 const currentPageItems = pdmSuggestions.slice(startIdx, endIdx);
