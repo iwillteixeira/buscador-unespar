@@ -50,6 +50,7 @@ export default function App() {
     fornecedor: true,
     telefone: true,
     email: true,
+    uf_municipio: true,
     quantidade_registrada: true,
     saldo_adesao: true,
     vigencia_inicial: true,
@@ -1357,6 +1358,20 @@ export default function App() {
                 {visibleColumns.email ? "✓" : "✗"} Email
               </button>
               <button
+                onClick={() => toggleColumnVisibility('uf_municipio')}
+                style={{
+                  padding: "4px 10px",
+                  fontSize: 12,
+                  backgroundColor: visibleColumns.uf_municipio ? "#28a745" : "#6c757d",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 4,
+                  cursor: "pointer"
+                }}
+              >
+                {visibleColumns.uf_municipio ? "✓" : "✗"} UF/Município
+              </button>
+              <button
                 onClick={() => toggleColumnVisibility('quantidade_registrada')}
                 style={{
                   padding: "4px 10px",
@@ -1648,6 +1663,25 @@ export default function App() {
                     </span>
                   </th>
                   )}
+                  {visibleColumns.uf_municipio && (
+                  <th 
+                    style={{ 
+                      padding: 8, 
+                      textAlign: "left", 
+                      borderBottom: "2px solid #adb5bd", 
+                      userSelect: "none", 
+                      minWidth: 200,
+                      position: "sticky",
+                      top: 0,
+                      backgroundColor: "#e9ecef",
+                      zIndex: 10
+                    }}
+                  >
+                    <span onClick={() => handleSort(9)} style={{ cursor: "pointer" }}>
+                      UF/Município <SortIcon colIndex={9} />
+                    </span>
+                  </th>
+                  )}
                   {visibleColumns.quantidade_registrada && (
                   <th 
                     style={{ 
@@ -1662,8 +1696,8 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    <span onClick={() => handleSort(9)} style={{ cursor: "pointer" }}>
-                      Qtd Registrada <SortIcon colIndex={9} />
+                    <span onClick={() => handleSort(10)} style={{ cursor: "pointer" }}>
+                      Qtd Registrada <SortIcon colIndex={10} />
                     </span>
                   </th>
                   )}
@@ -1681,8 +1715,8 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    <span onClick={() => handleSort(10)} style={{ cursor: "pointer" }}>
-                      Saldo Adesão <SortIcon colIndex={10} />
+                    <span onClick={() => handleSort(11)} style={{ cursor: "pointer" }}>
+                      Saldo Adesão <SortIcon colIndex={11} />
                     </span>
                   </th>
                   )}
@@ -1700,8 +1734,8 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    <span onClick={() => handleSort(11)} style={{ cursor: "pointer" }}>
-                      Vigência Inicial <SortIcon colIndex={11} />
+                    <span onClick={() => handleSort(12)} style={{ cursor: "pointer" }}>
+                      Vigência Inicial <SortIcon colIndex={12} />
                     </span>
                   </th>
                   )}
@@ -1719,8 +1753,8 @@ export default function App() {
                       zIndex: 10
                     }}
                   >
-                    <span onClick={() => handleSort(12)} style={{ cursor: "pointer" }}>
-                      Vigência Final <SortIcon colIndex={12} />
+                    <span onClick={() => handleSort(13)} style={{ cursor: "pointer" }}>
+                      Vigência Final <SortIcon colIndex={13} />
                     </span>
                   </th>
                   )}
@@ -1804,6 +1838,13 @@ export default function App() {
                   {visibleColumns.email && (
                   <td style={{ padding: 8 }}>
                     {cnpjData[idx]?.email || row.email || "-"}
+                  </td>
+                  )}
+                  {visibleColumns.uf_municipio && (
+                  <td style={{ padding: 8 }}>
+                    {cnpjData[idx]?.uf && cnpjData[idx]?.municipio 
+                      ? `${cnpjData[idx].uf} / ${cnpjData[idx].municipio}` 
+                      : "-"}
                   </td>
                   )}
                   {visibleColumns.quantidade_registrada && <td style={{ padding: 8 }}>{row.quantidade_registrada || "-"}</td>}
