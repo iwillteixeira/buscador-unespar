@@ -6,7 +6,7 @@ import { saveToCache, getFromCache, clearCache } from "./utils/indexedDB";
 
 export default function App() {
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  const [pageSize, setPageSize] = useState(50);
 
   const [column] = useState("palavra_chave");
   const [search, setSearch] = useState("");
@@ -781,10 +781,9 @@ export default function App() {
             disabled={isLoadingAll}
             style={{ marginLeft: 5, padding: "6px", borderRadius: 4, border: "1px solid #ced4da" }}
           >
-            <option value={10}>10</option>
-            <option value={20}>20</option>
             <option value={50}>50</option>
             <option value={100}>100</option>
+            <option value={150}>150</option>
           </select>
         </label>
 
