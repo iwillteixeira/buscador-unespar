@@ -1063,6 +1063,18 @@ export default function App() {
             </label>
 
             <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
+              <strong>Ano da Compra:</strong>
+              <input
+                type="text"
+                value={tempAdvancedFilters.anoCompra || ""}
+                onChange={(e) => handleAdvancedFilterChange("anoCompra", e.target.value)}
+                placeholder="Ex: 2024"
+                maxLength={4}
+                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
+              />
+            </label>
+
+            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
               <strong>Descrição PDM:</strong>
               <input
                 type="text"
