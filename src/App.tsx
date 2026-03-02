@@ -293,7 +293,7 @@ export default function App() {
 
     const pdmFilter = advancedFilters.codigoPdm?.trim();
     if (pdmFilter) {
-      const pdmCodes = pdmFilter.split(',').map(code => code.trim()).filter(code => code.length > 0);
+      const pdmCodes = pdmFilter.split(',').map(code => code.trim()).filter(code => code.length > 0).map(code => /^\d+$/.test(code) ? code.padStart(5, '0') : code);
       if (pdmCodes.length > 0) {
         filtered = filtered.filter(row => 
           pdmCodes.some(code => row.codigo_pdm?.includes(code))
@@ -574,7 +574,7 @@ export default function App() {
                       <div
                         key={startIdx + idx}
                         onClick={() => {
-                          setTempAdvancedFilters({ ...tempAdvancedFilters, codigoPdm: String(item.codigoPDM) });
+                          setTempAdvancedFilters({ ...tempAdvancedFilters, codigoPdm: String(item.codigoPDM).padStart(5, '0') });
                           setShowSuggestions(false);
                           setSuggestionPage(0);
                         }}
