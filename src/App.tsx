@@ -3,6 +3,27 @@ import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { fetchArpItens, type AdvancedFilters } from "./api/client";
 import { saveToCache, getFromCache, clearCache } from "./utils/indexedDB";
+import {
+  Search,
+  Package,
+  Trash2,
+  Filter,
+  Download,
+  Info,
+  ChevronDown,
+  Eye,
+  Check,
+  ChevronsLeft,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsRight,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Phone,
+  X,
+} from "lucide-react";
+import "./App.css";
 
 export default function App() {
   const [page, setPage] = useState(1);
@@ -10,16 +31,16 @@ export default function App() {
 
   const [column] = useState("palavra_chave");
   const [search, setSearch] = useState("");
-  
+
   const [searchQuery, setSearchQuery] = useState("");
   const [orderColumn, setOrderColumn] = useState(3);
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
-  
+
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<AdvancedFilters>({
     status: "vigente",
   });
-  
+
   const [tempAdvancedFilters, setTempAdvancedFilters] = useState<AdvancedFilters>({
     status: "vigente",
   });
@@ -55,7 +76,7 @@ export default function App() {
     saldo_adesao: true,
     vigencia_inicial: true,
     vigencia_final: true,
-    descricao_pdm: true
+    descricao_pdm: true,
   });
 
   const topScrollRef = useRef<HTMLDivElement>(null);
@@ -90,7 +111,7 @@ export default function App() {
         const response = await fetch(
           `/serpro-api/cnbs-api/material/v1/palavra?palavra=${encodeURIComponent(search)}`
         );
-        
+
         if (!response.ok) {
           setPdmSuggestions([]);
           setShowSuggestions(false);
@@ -100,37 +121,37 @@ export default function App() {
 
         const data = await response.json();
         const items = Array.isArray(data) ? data.slice(0, 100) : [];
-        
-        const normalize = (str: string) => 
+
+        const normalize = (str: string) =>
           str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-        
+
         const searchNorm = normalize(search);
-        
+
         const scored = items.map((item: any) => {
           const nome = item.nomePdm || item.descricaoPDM || "";
           const nomeNorm = normalize(nome);
           let score = 0;
-          
+
           const lengthDiff = Math.abs(nomeNorm.length - searchNorm.length);
-          
+
           if (nomeNorm === searchNorm) score += 10000;
-          
+
           if (lengthDiff <= 2 && nomeNorm.includes(searchNorm)) {
             score += 5000;
           }
-          
+
           if (nomeNorm.startsWith(searchNorm)) {
             score += 1000;
             if (lengthDiff <= 3) score += 500;
           }
-          
+
           if (nomeNorm.includes(searchNorm)) score += 200;
-          
-          const searchWords = searchNorm.split(" ").filter(w => w.length > 1);
+
+          const searchWords = searchNorm.split(" ").filter((w) => w.length > 1);
           const nomeWords = nomeNorm.split(" ");
-          
-          searchWords.forEach(sw => {
-            nomeWords.forEach(nw => {
+
+          searchWords.forEach((sw) => {
+            nomeWords.forEach((nw) => {
               if (nw === sw) score += 800;
               if (nw.startsWith(sw)) {
                 const nwLengthDiff = Math.abs(nw.length - sw.length);
@@ -140,17 +161,16 @@ export default function App() {
               if (nw.includes(sw)) score += 50;
             });
           });
-          
-          const exactWordMatch = nomeWords.some(nw => nw === searchNorm);
+
+          const exactWordMatch = nomeWords.some((nw) => nw === searchNorm);
           if (exactWordMatch) score += 3000;
-          
+
           return { ...item, score, nome };
         });
-        
+
         scored.sort((a, b) => b.score - a.score);
         setPdmSuggestions(scored.slice(0, 48));
         setShowSuggestions(true);
-        
       } catch (err) {
         console.error("Erro ao buscar sugestões:", err);
         setPdmSuggestions([]);
@@ -204,7 +224,7 @@ export default function App() {
     setLoadProgress(0);
     setCancelLoading(false);
     const allItems: any[] = [];
-    
+
     try {
       const firstResponse = await fetchArpItens({
         page: 1,
@@ -219,7 +239,7 @@ export default function App() {
       const totalRecords = firstResponse.recordsFiltered;
       const batchSize = 1000;
       const totalPages = Math.ceil(totalRecords / batchSize);
-      
+
       if (totalRecords > 50000) {
         const proceed = window.confirm(
           `⚠️ Foram encontrados ${totalRecords} registros! Isso pode demorar alguns minutos. Continuar?`
@@ -234,7 +254,7 @@ export default function App() {
       setLoadProgress(Math.round((1 / totalPages) * 100));
 
       const parallelRequests = 5;
-      
+
       for (let i = 2; i <= totalPages; i += parallelRequests) {
         if (cancelLoading) {
           alert("Carregamento cancelado!");
@@ -242,7 +262,7 @@ export default function App() {
         }
 
         const promises = [];
-        for (let j = 0; j < parallelRequests && (i + j) <= totalPages; j++) {
+        for (let j = 0; j < parallelRequests && i + j <= totalPages; j++) {
           const pageNum = i + j;
           promises.push(
             fetchArpItens({
@@ -258,25 +278,27 @@ export default function App() {
         }
 
         const responses = await Promise.all(promises);
-        responses.forEach(response => {
+        responses.forEach((response) => {
           allItems.push(...response.data);
         });
 
-        setLoadProgress(Math.round((Math.min(i + parallelRequests - 1, totalPages) / totalPages) * 100));
+        setLoadProgress(
+          Math.round((Math.min(i + parallelRequests - 1, totalPages) / totalPages) * 100)
+        );
       }
 
       if (!cancelLoading) {
         await saveToCache(search, allItems);
-        
         setAllData(allItems);
         setUseCache(true);
         setSearchQuery(search);
         alert(`✅ ${allItems.length} itens carregados e salvos em cache!`);
       }
-      
     } catch (err) {
       console.error("Erro ao carregar todos os dados:", err);
-      alert("❌ Erro ao carregar dados. A API pode estar limitando requisições. Tente novamente em alguns minutos.");
+      alert(
+        "❌ Erro ao carregar dados. A API pode estar limitando requisições. Tente novamente em alguns minutos."
+      );
     } finally {
       setIsLoadingAll(false);
       setLoadProgress(0);
@@ -285,18 +307,22 @@ export default function App() {
   }
 
   const results = useMemo(() => {
-    const rawResults = useCache ? allData : (data?.data || []);
-    
+    const rawResults = useCache ? allData : data?.data || [];
+
     if (rawResults.length === 0) return [];
 
     let filtered = rawResults;
 
     const pdmFilter = advancedFilters.codigoPdm?.trim();
     if (pdmFilter) {
-      const pdmCodes = pdmFilter.split(',').map(code => code.trim()).filter(code => code.length > 0).map(code => /^\d+$/.test(code) ? code.padStart(5, '0') : code);
+      const pdmCodes = pdmFilter
+        .split(",")
+        .map((code) => code.trim())
+        .filter((code) => code.length > 0)
+        .map((code) => (/^\d+$/.test(code) ? code.padStart(5, "0") : code));
       if (pdmCodes.length > 0) {
-        filtered = filtered.filter(row => 
-          pdmCodes.some(code => row.codigo_pdm?.includes(code))
+        filtered = filtered.filter((row) =>
+          pdmCodes.some((code) => row.codigo_pdm?.includes(code))
         );
       }
     }
@@ -304,14 +330,15 @@ export default function App() {
     return filtered;
   }, [useCache, allData, data?.data, advancedFilters.codigoPdm]);
 
-  const totalRecords = useCache ? allData.length : (data?.recordsFiltered || 0);
+  const totalRecords = useCache ? allData.length : data?.recordsFiltered || 0;
   const totalPages = Math.ceil(totalRecords / pageSize);
   const filteredCount = results.length;
-  const displayedResults = (useCache ? results.slice((page - 1) * pageSize, page * pageSize) : results)
-    .filter(row => {
-      const saldo = parseFloat(row.saldo_adesao);
-      return !isNaN(saldo) && saldo !== 0;
-    });
+  const displayedResults = (
+    useCache ? results.slice((page - 1) * pageSize, page * pageSize) : results
+  ).filter((row) => {
+    const saldo = parseFloat(row.saldo_adesao);
+    return !isNaN(saldo) && saldo !== 0;
+  });
 
   useEffect(() => {
     if (tableRef.current && topScrollContentRef.current) {
@@ -332,29 +359,29 @@ export default function App() {
     if (!fornecedor) return null;
     const cnpjMatch = fornecedor.match(/\d{2}[\.]?\d{3}[\.]?\d{3}[\/]?\d{4}[\-]?\d{2}/);
     if (!cnpjMatch) return null;
-    return cnpjMatch[0].replace(/[.,\/-]/g, '');
+    return cnpjMatch[0].replace(/[.,\/-]/g, "");
   }
 
   async function fetchCnpjData(fornecedor: string, rowIdx: number) {
     const cnpj = extractCnpj(fornecedor);
     if (!cnpj) return;
 
-    setLoadingCnpj(prev => ({ ...prev, [rowIdx]: true }));
+    setLoadingCnpj((prev) => ({ ...prev, [rowIdx]: true }));
 
     try {
       const [openCnpjResponse, brasilApiResponse] = await Promise.allSettled([
         fetch(`https://api.opencnpj.org/${cnpj}`),
-        fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`)
+        fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`),
       ]);
 
       let combinedData: any = {};
 
-      if (openCnpjResponse.status === 'fulfilled' && openCnpjResponse.value.ok) {
+      if (openCnpjResponse.status === "fulfilled" && openCnpjResponse.value.ok) {
         const data = await openCnpjResponse.value.json();
         combinedData = { ...combinedData, ...data };
       }
 
-      if (brasilApiResponse.status === 'fulfilled' && brasilApiResponse.value.ok) {
+      if (brasilApiResponse.status === "fulfilled" && brasilApiResponse.value.ok) {
         const data = await brasilApiResponse.value.json();
         combinedData = {
           ...combinedData,
@@ -364,22 +391,22 @@ export default function App() {
           nome_fantasia: data.nome_fantasia,
           cep: data.cep,
           municipio: data.municipio,
-          uf: data.uf
+          uf: data.uf,
         };
       }
 
       if (Object.keys(combinedData).length > 0) {
-        setCnpjData(prev => ({ ...prev, [rowIdx]: combinedData }));
+        setCnpjData((prev) => ({ ...prev, [rowIdx]: combinedData }));
       }
     } catch (error) {
-      console.error('Erro ao buscar CNPJ:', error);
+      console.error("Erro ao buscar CNPJ:", error);
     } finally {
-      setLoadingCnpj(prev => ({ ...prev, [rowIdx]: false }));
+      setLoadingCnpj((prev) => ({ ...prev, [rowIdx]: false }));
     }
   }
 
   function toggleColumnVisibility(columnKey: keyof typeof visibleColumns) {
-    setVisibleColumns(prev => ({ ...prev, [columnKey]: !prev[columnKey] }));
+    setVisibleColumns((prev) => ({ ...prev, [columnKey]: !prev[columnKey] }));
   }
 
   function handleSort(columnIndex: number) {
@@ -394,7 +421,7 @@ export default function App() {
   }
 
   function handleAdvancedFilterChange(field: keyof AdvancedFilters, value: string) {
-    setTempAdvancedFilters(prev => ({ ...prev, [field]: value }));
+    setTempAdvancedFilters((prev) => ({ ...prev, [field]: value }));
   }
 
   function clearAdvancedFilters() {
@@ -422,10 +449,11 @@ export default function App() {
   }
 
   function exportExcel() {
-    const itemsToExport = selectedItems.size > 0 
-      ? displayedResults.filter((_, idx) => selectedItems.has(idx))
-      : displayedResults;
-    
+    const itemsToExport =
+      selectedItems.size > 0
+        ? displayedResults.filter((_, idx) => selectedItems.has(idx))
+        : displayedResults;
+
     if (itemsToExport.length === 0) {
       alert("Nenhum item selecionado para exportar!");
       return;
@@ -438,1467 +466,866 @@ export default function App() {
   }
 
   const SortIcon = ({ colIndex }: { colIndex: number }) => {
-    if (orderColumn !== colIndex) return <span style={{ color: "#ccc" }}>⇅</span>;
-    return <span>{orderDir === "asc" ? "↑" : "↓"}</span>;
+    if (orderColumn !== colIndex)
+      return <ArrowUpDown size={13} className="sort-icon sort-icon--inactive" />;
+    return orderDir === "asc" ? (
+      <ArrowUp size={13} className="sort-icon" />
+    ) : (
+      <ArrowDown size={13} className="sort-icon" />
+    );
   };
 
   const activeFiltersCount = Object.entries(tempAdvancedFilters).filter(
     ([key, value]) => value && key !== "status"
   ).length;
 
+  const columnLabels: Record<keyof typeof visibleColumns, string> = {
+    numero: "Número",
+    unidade_gerenciadora: "Unidade Gerenciadora",
+    numero_item_compra: "Nº Item Compra",
+    codigo_pdm: "Código PDM",
+    descricao_detalhada: "Descrição Detalhada",
+    uf: "UF",
+    fornecedor: "Fornecedor",
+    telefone: "Telefone",
+    email: "Email",
+    uf_municipio: "UF/Município",
+    quantidade_registrada: "Qtd Registrada",
+    saldo_adesao: "Saldo Adesão",
+    vigencia_inicial: "Vigência Inicial",
+    vigencia_final: "Vigência Final",
+    descricao_pdm: "Descrição PDM",
+  };
+
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      <header style={{
-        backgroundImage: "linear-gradient(#000000 0%, #D8D8D8 0%, #FFFFFF 75%)",
-        color: "#000",
-        padding: "20px",
-        marginBottom: 0,
-        boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
-      }}>
-        <div style={{ 
-          maxWidth: "100%", 
-          margin: "0 auto",
-          display: "flex",
-          alignItems: "center",
-          gap: 20
-        }}>
-          <img 
-            src="https://unespar.edu.br/++theme++tema-unespar-plone/img/logo-unespar.png" 
+    <div className="app-wrapper">
+      {/* ── Header ── */}
+      <header className="app-header">
+        <div className="app-header__content">
+          <img
+            src="https://unespar.edu.br/++theme++tema-unespar-plone/img/logo-unespar.png"
             alt="UNESPAR"
-            style={{ height: 60 }}
+            className="app-header__logo"
             onError={(e) => {
-              e.currentTarget.style.display = 'none';
+              e.currentTarget.style.display = "none";
             }}
           />
-          <div style={{ color: "#000" }}>
-            <h1 style={{ margin: 0, fontSize: 24, fontWeight: "bold", color: "#000" }}>
-              Buscador ARP - Sistema de Compras
-            </h1>
-            <p style={{ margin: "5px 0 0 0", fontSize: 14, color: "#333" }}>
-              Universidade Estadual do Paraná
-            </p>
+          <div>
+            <h1 className="app-header__title">Buscador ARP – Sistema de Compras</h1>
+            <p className="app-header__subtitle">Universidade Estadual do Paraná</p>
           </div>
         </div>
       </header>
+      <div className="app-header__accent" />
 
-      <div style={{
-        height: "30px",
-        background: "#002661",
-        borderTop: "3px solid #007F3D",
-        marginBottom: 20
-      }}></div>
+      {/* ── Main ── */}
+      <main className="app-main">
+        <div className="page-title">
+          <Package size={20} />
+          <h2>ARP – Busca por Palavra-chave</h2>
+        </div>
 
-      <div style={{ padding: 20, fontFamily: "system-ui, sans-serif", maxWidth: "100%", margin: "0 auto" }}>
-      <h2 style={{ color: "#1e5a3c", marginTop: 0 }}>ARP – Busca por Palavra-chave</h2>
-
-      <div style={{ display: "flex", gap: 10, marginBottom: 15, flexWrap: "wrap", alignItems: "center" }}>
-        <label style={{ fontSize: 16, position: "relative" }}>
-          <strong>Palavra-chave:</strong>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleSearch();
-              }
-            }}
-            placeholder="Digite e pressione Enter..."
-            style={{ marginLeft: 5, padding: "6px 12px", width: 300, fontSize: 15 }}
-            disabled={isFetching || isLoadingAll}
-          />
-          
-          {loadingSuggestions && (
-            <div style={{
-              position: "absolute",
-              top: "100%",
-              left: 0,
-              marginTop: 5,
-              backgroundColor: "white",
-              border: "1px solid #ccc",
-              borderRadius: 4,
-              padding: 10,
-              width: 400,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-              zIndex: 1000
-            }}>
-              ⏳ Buscando sugestões de PDM...
-            </div>
-          )}
-          
-          {showSuggestions && pdmSuggestions.length > 0 && (
-            <div style={{
-              position: "absolute",
-              top: "100%",
-              left: 0,
-              marginTop: 5,
-              backgroundColor: "white",
-              border: "1px solid #007F3D",
-              borderRadius: 4,
-              padding: 10,
-              width: 500,
-              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-              zIndex: 1000
-            }}>
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "center",
-                marginBottom: 8,
-                paddingBottom: 6,
-                borderBottom: "1px solid #ddd"
-              }}>
-                <strong style={{ color: "#007F3D" }}>💡 Sugestões de Código PDM:</strong>
-                <button
-                  onClick={() => setShowSuggestions(false)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    fontSize: 18,
-                    cursor: "pointer",
-                    color: "#666"
+        {/* ── Search card ── */}
+        <div className="card mb-3">
+          <div className="search-toolbar">
+            {/* Keyword input */}
+            <div className="search-field">
+              <label className="field-label">Palavra-chave</label>
+              <div className="input-icon-wrapper">
+                <Search size={15} className="input-icon" />
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSearch();
                   }}
-                >
-                  ✕
-                </button>
+                  placeholder="Digite e pressione Enter..."
+                  className="text-input search-input"
+                  disabled={isFetching || isLoadingAll}
+                />
               </div>
-              {(() => {
-                const itemsPerPage = 6;
-                const totalPages = Math.min(8, Math.ceil(pdmSuggestions.length / itemsPerPage));
-                const startIdx = suggestionPage * itemsPerPage;
-                const endIdx = startIdx + itemsPerPage;
-                const currentPageItems = pdmSuggestions.slice(startIdx, endIdx);
-                
-                return (
-                  <>
-                    {currentPageItems.map((item, idx) => (
-                      <div
-                        key={startIdx + idx}
-                        onClick={() => {
-                          setTempAdvancedFilters({ ...tempAdvancedFilters, codigoPdm: String(item.codigoPDM).padStart(5, '0') });
-                          setShowSuggestions(false);
-                          setSuggestionPage(0);
-                        }}
-                        style={{
-                          padding: 8,
-                          margin: "4px 0",
-                          cursor: "pointer",
-                          backgroundColor: "#f8f9fa",
-                          borderRadius: 4,
-                          border: "1px solid #dee2e6",
-                          transition: "all 0.2s"
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = "#e7f4e9";
-                          e.currentTarget.style.borderColor = "#007F3D";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = "#f8f9fa";
-                          e.currentTarget.style.borderColor = "#dee2e6";
-                        }}
-                      >
-                        <div style={{ fontWeight: "bold", color: "#002661" }}>
-                          📦 {item.codigoPDM} - {item.nome}
-                        </div>
-                        <div style={{ fontSize: 13, color: "#495057", marginTop: 2 }}>
-                          Classe: {item.nomeClasse || "N/A"}
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {totalPages > 1 && (
-                      <div style={{
-                        display: "flex",
-                        justifyContent: "center",
-                        alignItems: "center",
-                        gap: 10,
-                        marginTop: 10,
-                        paddingTop: 10,
-                        borderTop: "1px solid #dee2e6"
-                      }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSuggestionPage(Math.max(0, suggestionPage - 1));
-                          }}
-                          disabled={suggestionPage === 0}
-                          style={{
-                            padding: "4px 12px",
-                            fontSize: 12,
-                            backgroundColor: suggestionPage === 0 ? "#e9ecef" : "#002661",
-                            color: suggestionPage === 0 ? "#6c757d" : "white",
-                            border: "none",
-                            borderRadius: 4,
-                            cursor: suggestionPage === 0 ? "not-allowed" : "pointer"
-                          }}
-                        >
-                          ← Anterior
-                        </button>
-                        
-                        <span style={{ fontSize: 13, color: "#495057" }}>
-                          Página {suggestionPage + 1} de {totalPages}
-                        </span>
-                        
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSuggestionPage(Math.min(totalPages - 1, suggestionPage + 1));
-                          }}
-                          disabled={suggestionPage >= totalPages - 1}
-                          style={{
-                            padding: "4px 12px",
-                            fontSize: 12,
-                            backgroundColor: suggestionPage >= totalPages - 1 ? "#e9ecef" : "#002661",
-                            color: suggestionPage >= totalPages - 1 ? "#6c757d" : "white",
-                            border: "none",
-                            borderRadius: 4,
-                            cursor: suggestionPage >= totalPages - 1 ? "not-allowed" : "pointer"
-                          }}
-                        >
-                          Próxima →
-                        </button>
-                      </div>
-                    )}
-                  </>
-                );
-              })()}
-            </div>
-          )}
-        </label>
 
-        <button
-          onClick={handleSearch}
-          disabled={!search.trim() || isFetching || isLoadingAll}
-          style={{ 
-            padding: "6px 20px", 
-            fontWeight: "bold",
-            fontSize: 15,
-            backgroundColor: (isFetching || isLoadingAll) ? "#ccc" : "#002661",
-            color: "white",
-            border: "none",
-            borderRadius: 4,
-            cursor: (isFetching || isLoadingAll) ? "not-allowed" : "pointer"
-          }}
-        >
-          {isFetching ? "⏳ Buscando..." : "🔍 Buscar (Normal)"}
-        </button>
-
-        <button
-          onClick={loadAllData}
-          disabled={!search.trim() || isLoadingAll || isFetching}
-          style={{ 
-            padding: "6px 20px",
-            fontWeight: "bold",
-            fontSize: 15,
-            backgroundColor: isLoadingAll ? "#ccc" : "#2d7a50",
-            color: "white",
-            border: "none",
-            borderRadius: 4,
-            cursor: isLoadingAll ? "not-allowed" : "pointer"
-          }}
-        >
-          {isLoadingAll ? `⏳ ${loadProgress}%` : "📦 Carregar TODOS"}
-        </button>
-
-        {isLoadingAll && (
-          <button
-            onClick={() => setCancelLoading(true)}
-            style={{ 
-              padding: "6px 16px",
-              fontSize: 14,
-              backgroundColor: "#dc3545",
-              color: "white",
-              border: "none",
-              borderRadius: 4,
-              cursor: "pointer"
-            }}
-          >
-            ❌ Cancelar
-          </button>
-        )}
-
-        <button
-          onClick={async () => {
-            if (window.confirm("Limpar todo o cache de dados?")) {
-              await clearCache();
-              setAllData([]);
-              setUseCache(false);
-              alert("Cache limpo!");
-            }
-          }}
-          style={{ 
-            padding: "6px 16px",
-            fontSize: 14,
-            backgroundColor: "#6c757d",
-            color: "white",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer"
-          }}
-        >
-          🗑️ Limpar Cache
-        </button>
-
-        <button
-          onClick={() => setShowAdvanced(!showAdvanced)}
-          disabled={isLoadingAll}
-          style={{ 
-            padding: "6px 20px",
-            fontSize: 15,
-            backgroundColor: "#007F3D",
-            color: "white",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-            position: "relative"
-          }}
-        >
-          {showAdvanced ? "▲" : "▼"} Filtros Avançados
-          {activeFiltersCount > 0 && (
-            <span style={{
-              position: "absolute",
-              top: -5,
-              right: -5,
-              backgroundColor: "#dc3545",
-              color: "white",
-              borderRadius: "50%",
-              padding: "2px 6px",
-              fontSize: 11,
-              fontWeight: "bold"
-            }}>
-              {activeFiltersCount}
-            </span>
-          )}
-        </button>
-
-        <label style={{ fontSize: 14 }}>
-          Itens/página:
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              setPageSize(Number(e.target.value));
-              setPage(1);
-            }}
-            disabled={isLoadingAll}
-            style={{ marginLeft: 5, padding: "6px", borderRadius: 4, border: "1px solid #ced4da" }}
-          >
-            <option value={50}>50</option>
-            <option value={100}>100</option>
-            <option value={150}>150</option>
-          </select>
-        </label>
-
-        <button
-          disabled={!displayedResults.length}
-          onClick={() => {
-            const count = selectedItems.size > 0 ? selectedItems.size : displayedResults.length;
-            const message = selectedItems.size > 0 
-              ? `Exportar ${count} registro(s) selecionado(s) para Excel?`
-              : `Nenhum item selecionado. Exportar todos os ${count} registros desta página para Excel?`;
-            if (window.confirm(message)) {
-              exportExcel();
-            }
-          }}
-          style={{ 
-            padding: "6px 20px",
-            fontSize: 15,
-            backgroundColor: displayedResults.length ? "#28a745" : "#ccc",
-            color: "white",
-            border: "none",
-            borderRadius: 4,
-            cursor: displayedResults.length ? "pointer" : "not-allowed"
-          }}
-        >
-          📥 Exportar {selectedItems.size > 0 ? `Selecionados (${selectedItems.size})` : `Página (${displayedResults.length})`}
-        </button>
-      </div>
-
-      {useCache && allData.length > 0 && (
-        <div style={{ 
-          padding: 12, 
-          backgroundColor: "#d1ecf1", 
-          border: "1px solid #bee5eb", 
-          borderRadius: 4,
-          color: "#0c5460",
-          fontSize: 14,
-          marginBottom: 10
-        }}>
-          💾 <strong>Cache Ativo:</strong> {allData.length} itens carregados | Filtrados: <strong>{filteredCount}</strong>
-        </div>
-      )}
-
-      {isLoadingAll && (
-        <div style={{ 
-          padding: 16, 
-          backgroundColor: "#fff3cd", 
-          border: "1px solid #ffeaa7", 
-          borderRadius: 4,
-          color: "#856404",
-          fontSize: 15,
-          marginBottom: 10
-        }}>
-          <div style={{ marginBottom: 8 }}>
-            ⏳ Carregando dados em lote (1000 itens por requisição, 5 paralelas)...
-          </div>
-          <div style={{ 
-            width: "100%", 
-            backgroundColor: "#e0e0e0", 
-            borderRadius: 10, 
-            overflow: "hidden",
-            height: 25
-          }}>
-            <div style={{ 
-              width: `${loadProgress}%`, 
-              backgroundColor: "#2d7a50",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "white",
-              fontWeight: "bold",
-              transition: "width 0.3s"
-            }}>
-              {loadProgress}%
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showAdvanced && (
-        <div style={{
-          backgroundColor: "#f8f9fa",
-          border: "1px solid #dee2e6",
-          borderRadius: 4,
-          padding: 16,
-          marginBottom: 15
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h3 style={{ margin: 0, fontSize: 16 }}>Filtros Avançados</h3>
-            <button
-              onClick={clearAdvancedFilters}
-              style={{
-                padding: "4px 12px",
-                fontSize: 13,
-                backgroundColor: "#dc3545",
-                color: "white",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer"
-              }}
-            >
-              Limpar Filtros
-            </button>
-          </div>
-          
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 12 }}>
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Status:</strong>
-              <select
-                value={tempAdvancedFilters.status || "vigente"}
-                onChange={(e) => handleAdvancedFilterChange("status", e.target.value)}
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              >
-                <option value="">Todos</option>
-                <option value="vigente">Vigente</option>
-                <option value="encerrado">Encerrado</option>
-              </select>
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Código PDM:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.codigoPdm || ""}
-                onChange={(e) => handleAdvancedFilterChange("codigoPdm", e.target.value)}
-                placeholder="Ex: 12345 ou 19766, 19266 (múltiplos)"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-              {tempAdvancedFilters.codigoPdm && String(tempAdvancedFilters.codigoPdm).includes(',') && (
-                <small style={{ color: "#6c757d", marginTop: 2 }}>
-                  🔍 {String(tempAdvancedFilters.codigoPdm).split(',').filter(c => c.trim()).length} código(s): {String(tempAdvancedFilters.codigoPdm).split(',').map(c => c.trim()).filter(c => c).join(', ')}
-                </small>
+              {loadingSuggestions && (
+                <div className="suggestions-dropdown">
+                  <span className="text-muted text-sm">Buscando sugestões de PDM…</span>
+                </div>
               )}
-            </label>
 
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Órgão:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.orgao || ""}
-                onChange={(e) => handleAdvancedFilterChange("orgao", e.target.value)}
-                placeholder="Nome do órgão"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
+              {showSuggestions && pdmSuggestions.length > 0 && (
+                <div className="suggestions-dropdown">
+                  <div className="suggestions-header">
+                    <strong className="text-primary">Sugestões de Código PDM</strong>
+                    <button className="btn-icon" onClick={() => setShowSuggestions(false)}>
+                      <X size={16} />
+                    </button>
+                  </div>
+                  {(() => {
+                    const itemsPerPage = 6;
+                    const totalSugPages = Math.min(
+                      8,
+                      Math.ceil(pdmSuggestions.length / itemsPerPage)
+                    );
+                    const startIdx = suggestionPage * itemsPerPage;
+                    const currentPageItems = pdmSuggestions.slice(startIdx, startIdx + itemsPerPage);
+                    return (
+                      <>
+                        {currentPageItems.map((item, idx) => (
+                          <div
+                            key={startIdx + idx}
+                            className="suggestion-item"
+                            onClick={() => {
+                              setTempAdvancedFilters({
+                                ...tempAdvancedFilters,
+                                codigoPdm: String(item.codigoPDM).padStart(5, "0"),
+                              });
+                              setShowSuggestions(false);
+                              setSuggestionPage(0);
+                            }}
+                          >
+                            <div className="suggestion-item__code">
+                              <Package size={12} />
+                              {item.codigoPDM} – {item.nome}
+                            </div>
+                            <div className="suggestion-item__sub">
+                              Classe: {item.nomeClasse || "N/A"}
+                            </div>
+                          </div>
+                        ))}
+                        {totalSugPages > 1 && (
+                          <div className="suggestions-pagination">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSuggestionPage(Math.max(0, suggestionPage - 1));
+                              }}
+                              disabled={suggestionPage === 0}
+                              className="btn btn-sm btn-outline"
+                            >
+                              <ChevronLeft size={13} /> Anterior
+                            </button>
+                            <span className="text-muted text-sm">
+                              {suggestionPage + 1} / {totalSugPages}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSuggestionPage(Math.min(totalSugPages - 1, suggestionPage + 1));
+                              }}
+                              disabled={suggestionPage >= totalSugPages - 1}
+                              className="btn btn-sm btn-outline"
+                            >
+                              Próxima <ChevronRight size={13} />
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
 
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>UASG:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.uasg || ""}
-                onChange={(e) => handleAdvancedFilterChange("uasg", e.target.value)}
-                placeholder="Código UASG"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
+            {/* Action buttons */}
+            <div className="btn-group">
+              <button
+                onClick={handleSearch}
+                disabled={!search.trim() || isFetching || isLoadingAll}
+                className="btn btn-primary"
+              >
+                <Search size={14} />
+                {isFetching ? "Buscando…" : "Buscar"}
+              </button>
 
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Modalidade:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.modalidade || ""}
-                onChange={(e) => handleAdvancedFilterChange("modalidade", e.target.value)}
-                placeholder="Ex: Pregão Eletrônico"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
+              <button
+                onClick={loadAllData}
+                disabled={!search.trim() || isLoadingAll || isFetching}
+                className="btn btn-success"
+              >
+                <Package size={14} />
+                {isLoadingAll ? `${loadProgress}%` : "Carregar Todos"}
+              </button>
 
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Número ARP:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.numeroArp || ""}
-                onChange={(e) => handleAdvancedFilterChange("numeroArp", e.target.value)}
-                placeholder="Número da ARP"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
+              {isLoadingAll && (
+                <button onClick={() => setCancelLoading(true)} className="btn btn-danger">
+                  <X size={14} /> Cancelar
+                </button>
+              )}
 
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Número Processo:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.numeroProcesso || ""}
-                onChange={(e) => handleAdvancedFilterChange("numeroProcesso", e.target.value)}
-                placeholder="Número do processo"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Fornecedor:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.fornecedor || ""}
-                onChange={(e) => handleAdvancedFilterChange("fornecedor", e.target.value)}
-                placeholder="Nome do fornecedor"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>CNPJ Fornecedor:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.cnpjFornecedor || ""}
-                onChange={(e) => handleAdvancedFilterChange("cnpjFornecedor", e.target.value)}
-                placeholder="CNPJ"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Validade Início:</strong>
-              <input
-                type="date"
-                value={tempAdvancedFilters.validadeInicio || ""}
-                onChange={(e) => handleAdvancedFilterChange("validadeInicio", e.target.value)}
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Validade Fim:</strong>
-              <input
-                type="date"
-                value={tempAdvancedFilters.validadeFim || ""}
-                onChange={(e) => handleAdvancedFilterChange("validadeFim", e.target.value)}
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Valor Mínimo:</strong>
-              <input
-                type="number"
-                value={tempAdvancedFilters.valorMin || ""}
-                onChange={(e) => handleAdvancedFilterChange("valorMin", e.target.value)}
-                placeholder="R$ mínimo"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Valor Máximo:</strong>
-              <input
-                type="number"
-                value={tempAdvancedFilters.valorMax || ""}
-                onChange={(e) => handleAdvancedFilterChange("valorMax", e.target.value)}
-                placeholder="R$ máximo"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>UF:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.uf || ""}
-                onChange={(e) => handleAdvancedFilterChange("uf", e.target.value)}
-                placeholder="Ex: PR, SP, RJ"
-                maxLength={2}
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da", textTransform: "uppercase" }}
-              />
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Município:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.municipio || ""}
-                onChange={(e) => handleAdvancedFilterChange("municipio", e.target.value)}
-                placeholder="Nome do município"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Ano da Compra:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.anoCompra || ""}
-                onChange={(e) => handleAdvancedFilterChange("anoCompra", e.target.value)}
-                placeholder="Ex: 2024"
-                maxLength={4}
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
-
-            <label style={{ display: "flex", flexDirection: "column", fontSize: 14 }}>
-              <strong>Descrição PDM:</strong>
-              <input
-                type="text"
-                value={tempAdvancedFilters.descricaoPdm || ""}
-                onChange={(e) => handleAdvancedFilterChange("descricaoPdm", e.target.value)}
-                placeholder="Descrição do item"
-                style={{ padding: "6px", marginTop: 4, borderRadius: 4, border: "1px solid #ced4da" }}
-              />
-            </label>
-          </div>
-
-          <div style={{ marginTop: 12, fontSize: 13, color: "#6c757d" }}>
-            ℹ️ Os filtros avançados são aplicados automaticamente quando você clica em "Buscar"
-          </div>
-        </div>
-      )}
-
-      {!searchQuery && (
-        <div style={{ 
-          padding: 16, 
-          backgroundColor: "#f0f8ff", 
-          border: "1px solid #b8daff", 
-          borderRadius: 4,
-          color: "#004085",
-          fontSize: 15
-        }}>
-          ℹ️ Digite uma <strong>palavra-chave</strong> no campo de busca e clique em "Buscar" (ou pressione Enter)
-          <br />
-          <small>Exemplos: computador, papel, caneta, cafe, etc.</small>
-        </div>
-      )}
-
-      {error && (
-        <div style={{ 
-          padding: 16, 
-          backgroundColor: "#f8d7da", 
-          border: "1px solid #f5c6cb", 
-          borderRadius: 4,
-          color: "#721c24"
-        }}>
-          ❌ Erro ao buscar dados: {error instanceof Error ? error.message : "Erro desconhecido"}
-          <br />
-          <small>Tente novamente ou use outra palavra-chave.</small>
-        </div>
-      )}
-
-      {isFetching && !isLoadingAll && (
-        <div style={{ 
-          padding: 16, 
-          backgroundColor: "#fff3cd", 
-          border: "1px solid #ffeaa7", 
-          borderRadius: 4,
-          color: "#856404",
-          fontSize: 15
-        }}>
-          ⏳ Aguarde... buscando dados da API (pode levar alguns segundos)
-        </div>
-      )}
-
-      {searchQuery && !isFetching && !isLoadingAll && !error && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 10 }}>
-          <p style={{ fontSize: 16, margin: 0 }}>
-            Total: <b>{totalRecords}</b> registros | Página <b>{page}</b> de <b>{totalPages}</b>
-          </p>
-          
-          <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
-            <button
-              onClick={() => setPage(1)}
-              disabled={page === 1 || isFetching || isLoadingAll}
-              style={{
-                padding: "5px 10px",
-                backgroundColor: page === 1 ? "#e9ecef" : "#002661",
-                color: page === 1 ? "#6c757d" : "white",
-                border: "none",
-                borderRadius: 4,
-                cursor: page === 1 ? "not-allowed" : "pointer",
-                fontSize: 14
-              }}
-            >
-              ⏮ Primeira
-            </button>
-            
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1 || isFetching || isLoadingAll}
-              style={{
-                padding: "5px 10px",
-                backgroundColor: page === 1 ? "#e9ecef" : "#002661",
-                color: page === 1 ? "#6c757d" : "white",
-                border: "none",
-                borderRadius: 4,
-                cursor: page === 1 ? "not-allowed" : "pointer",
-                fontSize: 14
-              }}
-            >
-              ◀ Anterior
-            </button>
-            
-            <span style={{ padding: "0 10px", fontSize: 15 }}>
-              Página <input 
-                type="number" 
-                min={1} 
-                max={totalPages}
-                value={page}
-                onChange={(e) => {
-                  const newPage = parseInt(e.target.value);
-                  if (newPage >= 1 && newPage <= totalPages) {
-                    setPage(newPage);
+              <button
+                onClick={async () => {
+                  if (window.confirm("Limpar todo o cache de dados?")) {
+                    await clearCache();
+                    setAllData([]);
+                    setUseCache(false);
+                    alert("Cache limpo!");
                   }
                 }}
-                style={{ 
-                  width: 60, 
-                  padding: "4px", 
-                  textAlign: "center",
-                  border: "1px solid #ced4da",
-                  borderRadius: 4
+                className="btn btn-ghost"
+              >
+                <Trash2 size={14} /> Cache
+              </button>
+
+              <button
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                disabled={isLoadingAll}
+                className={`btn btn-filter${activeFiltersCount > 0 ? " has-badge" : ""}`}
+              >
+                <Filter size={14} />
+                Filtros
+                {activeFiltersCount > 0 && <span className="badge">{activeFiltersCount}</span>}
+                <ChevronDown
+                  size={13}
+                  style={{
+                    transition: "transform 0.2s",
+                    transform: showAdvanced ? "rotate(180deg)" : "rotate(0deg)",
+                  }}
+                />
+              </button>
+            </div>
+
+            {/* Right toolbar */}
+            <div className="toolbar-right">
+              <label className="field-label-inline">
+                Itens/pág.
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                  disabled={isLoadingAll}
+                  className="select-sm"
+                >
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={150}>150</option>
+                </select>
+              </label>
+
+              <button
+                disabled={!displayedResults.length}
+                onClick={() => {
+                  const count =
+                    selectedItems.size > 0 ? selectedItems.size : displayedResults.length;
+                  const message =
+                    selectedItems.size > 0
+                      ? `Exportar ${count} registro(s) selecionado(s) para Excel?`
+                      : `Nenhum item selecionado. Exportar todos os ${count} registros desta página para Excel?`;
+                  if (window.confirm(message)) exportExcel();
                 }}
-              /> de {totalPages}
+                className="btn btn-export"
+              >
+                <Download size={14} />
+                Exportar{" "}
+                {selectedItems.size > 0
+                  ? `(${selectedItems.size})`
+                  : `(${displayedResults.length})`}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Cache banner ── */}
+        {useCache && allData.length > 0 && (
+          <div className="alert alert-info mb-2">
+            <Info size={15} />
+            <span>
+              <strong>Cache Ativo:</strong> {allData.length} itens carregados | Filtrados:{" "}
+              <strong>{filteredCount}</strong>
             </span>
-            
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages || isFetching || isLoadingAll}
-              style={{
-                padding: "5px 10px",
-                backgroundColor: page === totalPages ? "#e9ecef" : "#002661",
-                color: page === totalPages ? "#6c757d" : "white",
-                border: "none",
-                borderRadius: 4,
-                cursor: page === totalPages ? "not-allowed" : "pointer",
-                fontSize: 14
-              }}
-            >
-              Próxima ▶
-            </button>
-            
-            <button
-              onClick={() => setPage(totalPages)}
-              disabled={page === totalPages || isFetching || isLoadingAll}
-              style={{
-                padding: "5px 10px",
-                backgroundColor: page === totalPages ? "#e9ecef" : "#002661",
-                color: page === totalPages ? "#6c757d" : "white",
-                border: "none",
-                borderRadius: 4,
-                cursor: page === totalPages ? "not-allowed" : "pointer",
-                fontSize: 14
-              }}
-            >
-              Última ⏭
-            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {!isFetching && !isLoadingAll && displayedResults.length > 0 && (
-        <>
-          <div style={{ 
-            marginTop: 12, 
-            padding: 12, 
-            backgroundColor: "#f8f9fa", 
-            border: "1px solid #dee2e6", 
-            borderRadius: 4 
-          }}>
-            <div style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
-              <strong style={{ fontSize: 14, marginRight: 12 }}>👁️ Visibilidade das Colunas:</strong>
+        {/* ── Progress ── */}
+        {isLoadingAll && (
+          <div className="progress-card mb-2">
+            <div className="progress-card__label">
+              Carregando dados em lote (1 000 itens por requisição, 5 paralelas)…
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              <button
-                onClick={() => toggleColumnVisibility('numero')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.numero ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.numero ? "✓" : "✗"} Número
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('unidade_gerenciadora')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.unidade_gerenciadora ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.unidade_gerenciadora ? "✓" : "✗"} Unidade Gerenciadora
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('numero_item_compra')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.numero_item_compra ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.numero_item_compra ? "✓" : "✗"} Nº Item Compra
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('codigo_pdm')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.codigo_pdm ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.codigo_pdm ? "✓" : "✗"} Código PDM
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('descricao_detalhada')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.descricao_detalhada ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.descricao_detalhada ? "✓" : "✗"} Descrição Detalhada
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('uf')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.uf ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.uf ? "✓" : "✗"} UF
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('fornecedor')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.fornecedor ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.fornecedor ? "✓" : "✗"} Fornecedor
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('telefone')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.telefone ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.telefone ? "✓" : "✗"} Telefone
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('email')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.email ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.email ? "✓" : "✗"} Email
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('uf_municipio')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.uf_municipio ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.uf_municipio ? "✓" : "✗"} UF/Município
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('quantidade_registrada')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.quantidade_registrada ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.quantidade_registrada ? "✓" : "✗"} Qtd Registrada
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('saldo_adesao')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.saldo_adesao ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.saldo_adesao ? "✓" : "✗"} Saldo Adesão
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('vigencia_inicial')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.vigencia_inicial ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.vigencia_inicial ? "✓" : "✗"} Vigência Inicial
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('vigencia_final')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.vigencia_final ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.vigencia_final ? "✓" : "✗"} Vigência Final
-              </button>
-              <button
-                onClick={() => toggleColumnVisibility('descricao_pdm')}
-                style={{
-                  padding: "4px 10px",
-                  fontSize: 12,
-                  backgroundColor: visibleColumns.descricao_pdm ? "#28a745" : "#6c757d",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 4,
-                  cursor: "pointer"
-                }}
-              >
-                {visibleColumns.descricao_pdm ? "✓" : "✗"} Descrição PDM
-              </button>
+            <div className="progress-bar-track">
+              <div className="progress-bar-fill" style={{ width: `${loadProgress}%` }}>
+                {loadProgress}%
+              </div>
             </div>
           </div>
+        )}
 
-          <div 
-            ref={topScrollRef}
-            onScroll={handleTopScroll}
-            style={{ 
-              overflowX: "auto", 
-              overflowY: "hidden",
-              height: 20,
-              marginTop: 12,
-              border: "1px solid #ddd",
-              borderRadius: 4
-            }}
-          >
-            <div ref={topScrollContentRef} style={{ height: 1 }}></div>
+        {/* ── Advanced filters ── */}
+        {showAdvanced && (
+          <div className="card filters-card mb-3">
+            <div className="filters-card__header">
+              <div className="filters-card__title">
+                <Filter size={16} /> Filtros Avançados
+              </div>
+              <button onClick={clearAdvancedFilters} className="btn btn-sm btn-danger">
+                <Trash2 size={13} /> Limpar
+              </button>
+            </div>
+
+            <div className="filters-grid">
+              <label className="filter-field">
+                <span className="field-label">Status</span>
+                <select
+                  value={tempAdvancedFilters.status || "vigente"}
+                  onChange={(e) => handleAdvancedFilterChange("status", e.target.value)}
+                  className="select-input"
+                >
+                  <option value="">Todos</option>
+                  <option value="vigente">Vigente</option>
+                  <option value="encerrado">Encerrado</option>
+                </select>
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Código PDM</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.codigoPdm || ""}
+                  onChange={(e) => handleAdvancedFilterChange("codigoPdm", e.target.value)}
+                  placeholder="Ex: 12345 ou 19766, 19266"
+                  className="text-input"
+                />
+                {tempAdvancedFilters.codigoPdm &&
+                  String(tempAdvancedFilters.codigoPdm).includes(",") && (
+                    <span className="field-hint">
+                      <Info size={11} />
+                      {
+                        String(tempAdvancedFilters.codigoPdm)
+                          .split(",")
+                          .filter((c) => c.trim()).length
+                      }{" "}
+                      código(s)
+                    </span>
+                  )}
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Órgão</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.orgao || ""}
+                  onChange={(e) => handleAdvancedFilterChange("orgao", e.target.value)}
+                  placeholder="Nome do órgão"
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">UASG</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.uasg || ""}
+                  onChange={(e) => handleAdvancedFilterChange("uasg", e.target.value)}
+                  placeholder="Código UASG"
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Modalidade</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.modalidade || ""}
+                  onChange={(e) => handleAdvancedFilterChange("modalidade", e.target.value)}
+                  placeholder="Ex: Pregão Eletrônico"
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Número ARP</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.numeroArp || ""}
+                  onChange={(e) => handleAdvancedFilterChange("numeroArp", e.target.value)}
+                  placeholder="Número da ARP"
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Número Processo</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.numeroProcesso || ""}
+                  onChange={(e) => handleAdvancedFilterChange("numeroProcesso", e.target.value)}
+                  placeholder="Número do processo"
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Fornecedor</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.fornecedor || ""}
+                  onChange={(e) => handleAdvancedFilterChange("fornecedor", e.target.value)}
+                  placeholder="Nome do fornecedor"
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">CNPJ Fornecedor</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.cnpjFornecedor || ""}
+                  onChange={(e) => handleAdvancedFilterChange("cnpjFornecedor", e.target.value)}
+                  placeholder="CNPJ"
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Validade Início</span>
+                <input
+                  type="date"
+                  value={tempAdvancedFilters.validadeInicio || ""}
+                  onChange={(e) => handleAdvancedFilterChange("validadeInicio", e.target.value)}
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Validade Fim</span>
+                <input
+                  type="date"
+                  value={tempAdvancedFilters.validadeFim || ""}
+                  onChange={(e) => handleAdvancedFilterChange("validadeFim", e.target.value)}
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Valor Mínimo</span>
+                <input
+                  type="number"
+                  value={tempAdvancedFilters.valorMin || ""}
+                  onChange={(e) => handleAdvancedFilterChange("valorMin", e.target.value)}
+                  placeholder="R$ mínimo"
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Valor Máximo</span>
+                <input
+                  type="number"
+                  value={tempAdvancedFilters.valorMax || ""}
+                  onChange={(e) => handleAdvancedFilterChange("valorMax", e.target.value)}
+                  placeholder="R$ máximo"
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">UF</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.uf || ""}
+                  onChange={(e) => handleAdvancedFilterChange("uf", e.target.value)}
+                  placeholder="Ex: PR, SP, RJ"
+                  maxLength={2}
+                  className="text-input uppercase"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Município</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.municipio || ""}
+                  onChange={(e) => handleAdvancedFilterChange("municipio", e.target.value)}
+                  placeholder="Nome do município"
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Ano da Compra</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.anoCompra || ""}
+                  onChange={(e) => handleAdvancedFilterChange("anoCompra", e.target.value)}
+                  placeholder="Ex: 2024"
+                  maxLength={4}
+                  className="text-input"
+                />
+              </label>
+
+              <label className="filter-field">
+                <span className="field-label">Descrição PDM</span>
+                <input
+                  type="text"
+                  value={tempAdvancedFilters.descricaoPdm || ""}
+                  onChange={(e) => handleAdvancedFilterChange("descricaoPdm", e.target.value)}
+                  placeholder="Descrição do item"
+                  className="text-input"
+                />
+              </label>
+            </div>
+
+            <p className="field-hint mt-2">
+              <Info size={12} /> Os filtros avançados são aplicados ao clicar em "Buscar"
+            </p>
           </div>
+        )}
 
-          <div 
-            ref={tableScrollRef}
-            onScroll={handleTableScroll}
-            style={{ 
-              overflowX: "auto", 
-              border: "1px solid #ddd", 
-              borderRadius: 4, 
-              marginTop: 4,
-              maxHeight: "600px",
-              overflowY: "auto"
-            }}
-          >
-            <table ref={tableRef} style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
-              <thead>
-                <tr style={{ backgroundColor: "#e9ecef" }}>
-                  <th style={{ 
-                    padding: 8, 
-                    textAlign: "center", 
-                    borderBottom: "2px solid #adb5bd", 
-                    width: 40,
-                    position: "sticky",
-                    top: 0,
-                    backgroundColor: "#e9ecef",
-                    zIndex: 10
-                  }}>
-                    <input 
-                      type="checkbox" 
-                      checked={selectedItems.size === displayedResults.length && displayedResults.length > 0}
-                      onChange={toggleSelectAll}
-                      title="Selecionar todos"
-                      style={{ cursor: "pointer" }}
-                    />
-                  </th>
-                  {visibleColumns.numero && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 80,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
+        {/* ── Status messages ── */}
+        {!searchQuery && (
+          <div className="alert alert-info">
+            <Info size={16} />
+            <span>
+              Digite uma <strong>palavra-chave</strong> no campo de busca e clique em "Buscar" (ou
+              pressione Enter)
+              <br />
+              <small>Exemplos: computador, papel, caneta, cafe, etc.</small>
+            </span>
+          </div>
+        )}
+
+        {error && (
+          <div className="alert alert-error">
+            <Info size={16} />
+            <span>
+              Erro ao buscar dados:{" "}
+              {error instanceof Error ? error.message : "Erro desconhecido"}
+              <br />
+              <small>Tente novamente ou use outra palavra-chave.</small>
+            </span>
+          </div>
+        )}
+
+        {isFetching && !isLoadingAll && (
+          <div className="alert alert-warning">
+            <Info size={16} />
+            <span>Aguarde… buscando dados da API (pode levar alguns segundos)</span>
+          </div>
+        )}
+
+        {/* ── Pagination bar ── */}
+        {searchQuery && !isFetching && !isLoadingAll && !error && (
+          <div className="pagination-bar">
+            <span className="pagination-info">
+              Total: <strong>{totalRecords}</strong> registros &nbsp;|&nbsp; Página{" "}
+              <strong>{page}</strong> de <strong>{totalPages}</strong>
+            </span>
+            <div className="pagination-controls">
+              <button
+                onClick={() => setPage(1)}
+                disabled={page === 1 || isFetching || isLoadingAll}
+                className="btn btn-sm btn-page"
+                title="Primeira página"
+              >
+                <ChevronsLeft size={15} />
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1 || isFetching || isLoadingAll}
+                className="btn btn-sm btn-page"
+                title="Página anterior"
+              >
+                <ChevronLeft size={15} />
+              </button>
+              <span className="pagination-page-input">
+                Pág.
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={page}
+                  onChange={(e) => {
+                    const newPage = parseInt(e.target.value);
+                    if (newPage >= 1 && newPage <= totalPages) setPage(newPage);
+                  }}
+                  className="page-input"
+                />
+                de {totalPages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages || isFetching || isLoadingAll}
+                className="btn btn-sm btn-page"
+                title="Próxima página"
+              >
+                <ChevronRight size={15} />
+              </button>
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={page === totalPages || isFetching || isLoadingAll}
+                className="btn btn-sm btn-page"
+                title="Última página"
+              >
+                <ChevronsRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Table section ── */}
+        {!isFetching && !isLoadingAll && displayedResults.length > 0 && (
+          <>
+            {/* Column visibility chips */}
+            <div className="card column-vis-card mb-2">
+              <div className="column-vis-label">
+                <Eye size={14} /> Colunas Visíveis
+              </div>
+              <div className="column-chips">
+                {(Object.keys(visibleColumns) as Array<keyof typeof visibleColumns>).map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => toggleColumnVisibility(key)}
+                    className={`column-chip${visibleColumns[key] ? " column-chip--active" : ""}`}
                   >
-                    <span onClick={() => handleSort(0)} style={{ cursor: "pointer" }}>
-                      Número <SortIcon colIndex={0} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.unidade_gerenciadora && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 150,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(1)} style={{ cursor: "pointer" }}>
-                      Unidade Gerenciadora <SortIcon colIndex={1} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.numero_item_compra && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 100,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(2)} style={{ cursor: "pointer" }}>
-                      Nº Item Compra <SortIcon colIndex={2} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.codigo_pdm && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 100, 
-                      backgroundColor: "#c8e6c9",
-                      position: "sticky",
-                      top: 0,
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(3)} style={{ cursor: "pointer" }}>
-                      <strong>Código PDM</strong> <SortIcon colIndex={3} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.descricao_detalhada && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 300,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(4)} style={{ cursor: "pointer" }}>
-                      Descrição Detalhada <SortIcon colIndex={4} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.uf && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 50,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(5)} style={{ cursor: "pointer" }}>
-                      UF <SortIcon colIndex={5} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.fornecedor && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 200,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(6)} style={{ cursor: "pointer" }}>
-                      Fornecedor <SortIcon colIndex={6} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.telefone && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 120,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(7)} style={{ cursor: "pointer" }}>
-                      Telefone <SortIcon colIndex={7} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.email && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 200,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(8)} style={{ cursor: "pointer" }}>
-                      Email <SortIcon colIndex={8} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.uf_municipio && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 200,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(9)} style={{ cursor: "pointer" }}>
-                      UF/Município <SortIcon colIndex={9} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.quantidade_registrada && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 80,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(10)} style={{ cursor: "pointer" }}>
-                      Qtd Registrada <SortIcon colIndex={10} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.saldo_adesao && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 80,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(11)} style={{ cursor: "pointer" }}>
-                      Saldo Adesão <SortIcon colIndex={11} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.vigencia_inicial && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 100,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(12)} style={{ cursor: "pointer" }}>
-                      Vigência Inicial <SortIcon colIndex={12} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.vigencia_final && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      userSelect: "none", 
-                      minWidth: 100,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    <span onClick={() => handleSort(13)} style={{ cursor: "pointer" }}>
-                      Vigência Final <SortIcon colIndex={13} />
-                    </span>
-                  </th>
-                  )}
-                  {visibleColumns.descricao_pdm && (
-                  <th 
-                    style={{ 
-                      padding: 8, 
-                      textAlign: "left", 
-                      borderBottom: "2px solid #adb5bd", 
-                      minWidth: 200,
-                      position: "sticky",
-                      top: 0,
-                      backgroundColor: "#e9ecef",
-                      zIndex: 10
-                    }}
-                  >
-                    Descrição PDM
-                  </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-              {displayedResults.map((row, idx) => (
-                <tr key={idx} style={{ borderBottom: "1px solid #dee2e6", backgroundColor: idx % 2 === 0 ? "#fff" : "#f8f9fa" }}>
-                  <td style={{ padding: 8, textAlign: "center" }}>
-                    <input 
-                      type="checkbox" 
-                      checked={selectedItems.has(idx)}
-                      onChange={() => toggleSelectItem(idx)}
-                      style={{ cursor: "pointer" }}
-                    />
-                  </td>
-                  {visibleColumns.numero && <td style={{ padding: 8 }}>{row.numero || "-"}</td>}
-                  {visibleColumns.unidade_gerenciadora && <td style={{ padding: 8 }}>{row.unidade_gerenciadora || "-"}</td>}
-                  {visibleColumns.numero_item_compra && <td style={{ padding: 8 }}>{row.numero_item_compra || "-"}</td>}
-                  {visibleColumns.codigo_pdm && <td style={{ padding: 8, fontWeight: "bold" }}>{row.codigo_pdm || "-"}</td>}
-                  {visibleColumns.descricao_detalhada && <td style={{ padding: 8 }}>{row.descricaoDetalhada || row.descricaodetalhada || "-"}</td>}
-                  {visibleColumns.uf && <td style={{ padding: 8 }}>{row.unidade_federacao || "-"}</td>}
-                  {visibleColumns.fornecedor && <td style={{ padding: 8 }}>{row.fornecedor || "-"}</td>}
-                  {visibleColumns.telefone && (
-                  <td style={{ padding: 8 }}>
-                    {cnpjData[idx] ? (
-                      <div>
-                        <div>{cnpjData[idx].telefone || "-"}</div>
-                        <button 
-                          onClick={() => fetchCnpjData(row.fornecedor, idx)}
-                          style={{
-                            fontSize: 10,
-                            padding: "2px 6px",
-                            marginTop: 4,
-                            cursor: "pointer",
-                            backgroundColor: "#007bff",
-                            color: "white",
-                            border: "none",
-                            borderRadius: 3
-                          }}
-                          disabled={loadingCnpj[idx]}
-                        >
-                          {loadingCnpj[idx] ? "..." : "🔄"}
-                        </button>
-                      </div>
-                    ) : (
-                      <button 
-                        onClick={() => fetchCnpjData(row.fornecedor, idx)}
-                        style={{
-                          padding: "4px 8px",
-                          cursor: "pointer",
-                          backgroundColor: "#28a745",
-                          color: "white",
-                          border: "none",
-                          borderRadius: 3,
-                          fontSize: 12
-                        }}
-                        disabled={loadingCnpj[idx] || !extractCnpj(row.fornecedor)}
-                      >
-                        {loadingCnpj[idx] ? "Carregando..." : "📞 Buscar"}
-                      </button>
+                    {visibleColumns[key] ? <Check size={11} /> : <Eye size={11} />}
+                    {columnLabels[key]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Dual scroll */}
+            <div ref={topScrollRef} onScroll={handleTopScroll} className="top-scroll">
+              <div ref={topScrollContentRef} style={{ height: 1 }} />
+            </div>
+
+            {/* Table */}
+            <div ref={tableScrollRef} onScroll={handleTableScroll} className="table-wrapper">
+              <table ref={tableRef} className="data-table">
+                <thead>
+                  <tr>
+                    <th className="th th-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={
+                          selectedItems.size === displayedResults.length &&
+                          displayedResults.length > 0
+                        }
+                        onChange={toggleSelectAll}
+                        title="Selecionar todos"
+                      />
+                    </th>
+                    {visibleColumns.numero && (
+                      <th className="th" style={{ minWidth: 80 }}>
+                        <span className="th-sort" onClick={() => handleSort(0)}>
+                          Número <SortIcon colIndex={0} />
+                        </span>
+                      </th>
                     )}
-                  </td>
-                  )}
-                  {visibleColumns.email && (
-                  <td style={{ padding: 8 }}>
-                    {cnpjData[idx]?.email || row.email || "-"}
-                  </td>
-                  )}
-                  {visibleColumns.uf_municipio && (
-                  <td style={{ padding: 8 }}>
-                    {cnpjData[idx]?.uf && cnpjData[idx]?.municipio 
-                      ? `${cnpjData[idx].uf} / ${cnpjData[idx].municipio}` 
-                      : "-"}
-                  </td>
-                  )}
-                  {visibleColumns.quantidade_registrada && <td style={{ padding: 8 }}>{row.quantidade_registrada || "-"}</td>}
-                  {visibleColumns.saldo_adesao && <td style={{ padding: 8 }}>{row.saldo_adesao || "-"}</td>}
-                  {visibleColumns.vigencia_inicial && <td style={{ padding: 8 }}>{row.vigencia_inicial || "-"}</td>}
-                  {visibleColumns.vigencia_final && <td style={{ padding: 8 }}>{row.vigencia_final || "-"}</td>}
-                  {visibleColumns.descricao_pdm && <td style={{ padding: 8 }}>{row.descricao_pdm || row.descricaoPdm || "-"}</td>}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </>
-      )}
+                    {visibleColumns.unidade_gerenciadora && (
+                      <th className="th" style={{ minWidth: 150 }}>
+                        <span className="th-sort" onClick={() => handleSort(1)}>
+                          Unidade Gerenciadora <SortIcon colIndex={1} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.numero_item_compra && (
+                      <th className="th" style={{ minWidth: 100 }}>
+                        <span className="th-sort" onClick={() => handleSort(2)}>
+                          Nº Item Compra <SortIcon colIndex={2} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.codigo_pdm && (
+                      <th className="th th-highlight" style={{ minWidth: 100 }}>
+                        <span className="th-sort" onClick={() => handleSort(3)}>
+                          Código PDM <SortIcon colIndex={3} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.descricao_detalhada && (
+                      <th className="th" style={{ minWidth: 300 }}>
+                        <span className="th-sort" onClick={() => handleSort(4)}>
+                          Descrição Detalhada <SortIcon colIndex={4} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.uf && (
+                      <th className="th" style={{ minWidth: 50 }}>
+                        <span className="th-sort" onClick={() => handleSort(5)}>
+                          UF <SortIcon colIndex={5} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.fornecedor && (
+                      <th className="th" style={{ minWidth: 200 }}>
+                        <span className="th-sort" onClick={() => handleSort(6)}>
+                          Fornecedor <SortIcon colIndex={6} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.telefone && (
+                      <th className="th" style={{ minWidth: 120 }}>
+                        <span className="th-sort" onClick={() => handleSort(7)}>
+                          Telefone <SortIcon colIndex={7} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.email && (
+                      <th className="th" style={{ minWidth: 200 }}>
+                        <span className="th-sort" onClick={() => handleSort(8)}>
+                          Email <SortIcon colIndex={8} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.uf_municipio && (
+                      <th className="th" style={{ minWidth: 200 }}>
+                        <span className="th-sort" onClick={() => handleSort(9)}>
+                          UF/Município <SortIcon colIndex={9} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.quantidade_registrada && (
+                      <th className="th" style={{ minWidth: 80 }}>
+                        <span className="th-sort" onClick={() => handleSort(10)}>
+                          Qtd Registrada <SortIcon colIndex={10} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.saldo_adesao && (
+                      <th className="th" style={{ minWidth: 80 }}>
+                        <span className="th-sort" onClick={() => handleSort(11)}>
+                          Saldo Adesão <SortIcon colIndex={11} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.vigencia_inicial && (
+                      <th className="th" style={{ minWidth: 100 }}>
+                        <span className="th-sort" onClick={() => handleSort(12)}>
+                          Vigência Inicial <SortIcon colIndex={12} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.vigencia_final && (
+                      <th className="th" style={{ minWidth: 100 }}>
+                        <span className="th-sort" onClick={() => handleSort(13)}>
+                          Vigência Final <SortIcon colIndex={13} />
+                        </span>
+                      </th>
+                    )}
+                    {visibleColumns.descricao_pdm && (
+                      <th className="th" style={{ minWidth: 200 }}>
+                        Descrição PDM
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayedResults.map((row, idx) => (
+                    <tr
+                      key={idx}
+                      className={`tr${selectedItems.has(idx) ? " tr--selected" : ""}`}
+                    >
+                      <td className="td td-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.has(idx)}
+                          onChange={() => toggleSelectItem(idx)}
+                        />
+                      </td>
+                      {visibleColumns.numero && <td className="td">{row.numero || "-"}</td>}
+                      {visibleColumns.unidade_gerenciadora && (
+                        <td className="td">{row.unidade_gerenciadora || "-"}</td>
+                      )}
+                      {visibleColumns.numero_item_compra && (
+                        <td className="td">{row.numero_item_compra || "-"}</td>
+                      )}
+                      {visibleColumns.codigo_pdm && (
+                        <td className="td td-bold td-highlight">{row.codigo_pdm || "-"}</td>
+                      )}
+                      {visibleColumns.descricao_detalhada && (
+                        <td className="td">
+                          {row.descricaoDetalhada || row.descricaodetalhada || "-"}
+                        </td>
+                      )}
+                      {visibleColumns.uf && (
+                        <td className="td">{row.unidade_federacao || "-"}</td>
+                      )}
+                      {visibleColumns.fornecedor && (
+                        <td className="td">{row.fornecedor || "-"}</td>
+                      )}
+                      {visibleColumns.telefone && (
+                        <td className="td">
+                          {cnpjData[idx] ? (
+                            <div className="cnpj-cell">
+                              <span>{cnpjData[idx].telefone || "-"}</span>
+                              <button
+                                onClick={() => fetchCnpjData(row.fornecedor, idx)}
+                                className="btn btn-xs btn-outline"
+                                disabled={loadingCnpj[idx]}
+                              >
+                                <Phone size={11} />
+                                {loadingCnpj[idx] ? "…" : "Atualizar"}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => fetchCnpjData(row.fornecedor, idx)}
+                              className="btn btn-xs btn-success"
+                              disabled={loadingCnpj[idx] || !extractCnpj(row.fornecedor)}
+                            >
+                              <Phone size={11} />
+                              {loadingCnpj[idx] ? "Buscando…" : "Buscar"}
+                            </button>
+                          )}
+                        </td>
+                      )}
+                      {visibleColumns.email && (
+                        <td className="td">{cnpjData[idx]?.email || row.email || "-"}</td>
+                      )}
+                      {visibleColumns.uf_municipio && (
+                        <td className="td">
+                          {cnpjData[idx]?.uf && cnpjData[idx]?.municipio
+                            ? `${cnpjData[idx].uf} / ${cnpjData[idx].municipio}`
+                            : "-"}
+                        </td>
+                      )}
+                      {visibleColumns.quantidade_registrada && (
+                        <td className="td">{row.quantidade_registrada || "-"}</td>
+                      )}
+                      {visibleColumns.saldo_adesao && (
+                        <td className="td">{row.saldo_adesao || "-"}</td>
+                      )}
+                      {visibleColumns.vigencia_inicial && (
+                        <td className="td">{row.vigencia_inicial || "-"}</td>
+                      )}
+                      {visibleColumns.vigencia_final && (
+                        <td className="td">{row.vigencia_final || "-"}</td>
+                      )}
+                      {visibleColumns.descricao_pdm && (
+                        <td className="td">{row.descricao_pdm || row.descricaoPdm || "-"}</td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
 
-      {!isFetching && !isLoadingAll && searchQuery && displayedResults.length === 0 && !error && (
-        <div style={{ 
-          padding: 16, 
-          backgroundColor: "#e2e3e5", 
-          border: "1px solid #d6d8db", 
-          borderRadius: 4,
-          color: "#383d41"
-        }}>
-          Nenhum registro encontrado com a palavra-chave "<strong>{searchQuery}</strong>". Tente outra palavra.
-        </div>
-      )}
+        {/* ── Empty state ── */}
+        {!isFetching && !isLoadingAll && searchQuery && displayedResults.length === 0 && !error && (
+          <div className="empty-state">
+            <Package size={44} className="empty-state__icon" />
+            <p>
+              Nenhum registro encontrado com a palavra-chave "<strong>{searchQuery}</strong>".
+              <br />
+              <small>Tente outra palavra.</small>
+            </p>
+          </div>
+        )}
 
-      {totalPages > 1 && !isFetching && !isLoadingAll && (
-        <div style={{ 
-          padding: 12, 
-          marginTop: 12,
-          backgroundColor: "#e8f5e9", 
-          border: "1px solid #c8e6c9", 
-          borderRadius: 4,
-          color: "#1e5a3c",
-          fontSize: 14
-        }}>
-          ℹ️ Use os botões de navegação acima para ver mais resultados.
-          <br />
-          <small>Clique nos cabeçalhos das colunas para ordenar os dados.</small>
-        </div>
-      )}
-    </div>
+        {/* ── Footer hint ── */}
+        {totalPages > 1 && !isFetching && !isLoadingAll && (
+          <div className="alert alert-success mt-2">
+            <Info size={14} />
+            <span>
+              Use os botões de navegação acima para ver mais resultados. Clique nos cabeçalhos das
+              colunas para ordenar.
+            </span>
+          </div>
+        )}
+      </main>
     </div>
   );
 }
