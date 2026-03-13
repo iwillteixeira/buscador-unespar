@@ -45,6 +45,18 @@ export type AdvancedFilters = {
   municipio?: string;
   codigoPdm?: string;
   descricaoPdm?: string;
+  // UI filter aliases
+  orgao?: string;
+  uasg?: string;
+  modalidade?: string;
+  numeroArp?: string;
+  numeroProcesso?: string;
+  fornecedor?: string;
+  cnpjFornecedor?: string;
+  validadeInicio?: string;
+  validadeFim?: string;
+  valorMin?: string;
+  valorMax?: string;
 };
 
 const api = axios.create({

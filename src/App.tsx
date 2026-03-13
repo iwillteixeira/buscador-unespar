@@ -77,6 +77,7 @@ export default function App() {
     vigencia_inicial: true,
     vigencia_final: true,
     descricao_pdm: true,
+    acao: true,
   });
 
   const topScrollRef = useRef<HTMLDivElement>(null);
@@ -183,7 +184,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [search]);
 
-  const { data, isLoading, error, isFetching } = useQuery({
+  const { data, error, isFetching } = useQuery({
     queryKey: ["arp", page, column, searchQuery, orderColumn, orderDir, advancedFilters, pageSize],
     queryFn: () =>
       fetchArpItens({
@@ -495,6 +496,7 @@ export default function App() {
     vigencia_inicial: "Vigência Inicial",
     vigencia_final: "Vigência Final",
     descricao_pdm: "Descrição PDM",
+    acao: "Ação",
   };
 
   return (
@@ -1208,6 +1210,11 @@ export default function App() {
                         Descrição PDM
                       </th>
                     )}
+                    {visibleColumns.acao && (
+                      <th className="th" style={{ minWidth: 80, textAlign: "center" }}>
+                        Ação
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -1294,6 +1301,26 @@ export default function App() {
                       )}
                       {visibleColumns.descricao_pdm && (
                         <td className="td">{row.descricao_pdm || row.descricaoPdm || "-"}</td>
+                      )}
+                      {visibleColumns.acao && (
+                        <td className="td" style={{ textAlign: "center" }}>
+                          {(() => {
+                            const match = typeof row.acao === "string" && row.acao.match(/href="([^"]+)"/);
+                            const url = match ? match[1] : null;
+                            return url ? (
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn btn-xs btn-outline"
+                                title="Ver detalhes no portal"
+                              >
+                                <Eye size={13} />
+                                Ver
+                              </a>
+                            ) : "-";
+                          })()}
+                        </td>
                       )}
                     </tr>
                   ))}
