@@ -20,6 +20,7 @@ export type ArpItem = {
   nome_resumido: string;
   palavra_chave?: string;
   acao?: string;
+  email?: string;
 };
 
 export type ApiResponse = {

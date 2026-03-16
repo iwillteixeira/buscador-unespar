@@ -2,7 +2,6 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { fetchArpItens, type AdvancedFilters } from "./api/client";
-import { saveToCache, getFromCache, clearCache } from "./utils/indexedDB";
 import {
   Search,
   Package,
@@ -33,6 +32,7 @@ export default function App() {
   const [search, setSearch] = useState("");
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchVersion, setSearchVersion] = useState(0);
   const [orderColumn, setOrderColumn] = useState(3);
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
 
@@ -47,11 +47,6 @@ export default function App() {
 
   const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
 
-  const [isLoadingAll, setIsLoadingAll] = useState(false);
-  const [loadProgress, setLoadProgress] = useState(0);
-  const [allData, setAllData] = useState<any[]>([]);
-  const [useCache, setUseCache] = useState(false);
-  const [cancelLoading, setCancelLoading] = useState(false);
 
   const [pdmSuggestions, setPdmSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -185,7 +180,7 @@ export default function App() {
   }, [search]);
 
   const { data, error, isFetching } = useQuery({
-    queryKey: ["arp", page, column, searchQuery, orderColumn, orderDir, advancedFilters, pageSize],
+    queryKey: ["arp", page, column, searchQuery, orderColumn, orderDir, advancedFilters, pageSize, searchVersion],
     queryFn: () =>
       fetchArpItens({
         page,
@@ -196,119 +191,16 @@ export default function App() {
         orderDir,
         advancedFilters,
       }),
-    enabled: searchQuery.length > 0 && !useCache,
+    enabled: searchQuery.length > 0,
     retry: 1,
     placeholderData: (prev) => prev,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
-  async function loadAllData() {
-    if (!search.trim()) {
-      alert("Digite uma palavra-chave primeiro!");
-      return;
-    }
-
-    const cached = await getFromCache(search);
-    if (cached && cached.items.length > 0) {
-      const useExisting = window.confirm(
-        `Encontrado cache com ${cached.items.length} itens para "${search}". Usar dados em cache?`
-      );
-      if (useExisting) {
-        setAllData(cached.items);
-        setUseCache(true);
-        setSearchQuery(search);
-        return;
-      }
-    }
-
-    setIsLoadingAll(true);
-    setLoadProgress(0);
-    setCancelLoading(false);
-    const allItems: any[] = [];
-
-    try {
-      const firstResponse = await fetchArpItens({
-        page: 1,
-        pageSize: 1000,
-        column,
-        value: search,
-        orderColumn: 3,
-        orderDir: "asc",
-        advancedFilters: { status: "vigente" },
-      });
-
-      const totalRecords = firstResponse.recordsFiltered;
-      const batchSize = 1000;
-      const totalPages = Math.ceil(totalRecords / batchSize);
-
-      if (totalRecords > 50000) {
-        const proceed = window.confirm(
-          `⚠️ Foram encontrados ${totalRecords} registros! Isso pode demorar alguns minutos. Continuar?`
-        );
-        if (!proceed) {
-          setIsLoadingAll(false);
-          return;
-        }
-      }
-
-      allItems.push(...firstResponse.data);
-      setLoadProgress(Math.round((1 / totalPages) * 100));
-
-      const parallelRequests = 5;
-
-      for (let i = 2; i <= totalPages; i += parallelRequests) {
-        if (cancelLoading) {
-          alert("Carregamento cancelado!");
-          break;
-        }
-
-        const promises = [];
-        for (let j = 0; j < parallelRequests && i + j <= totalPages; j++) {
-          const pageNum = i + j;
-          promises.push(
-            fetchArpItens({
-              page: pageNum,
-              pageSize: batchSize,
-              column,
-              value: search,
-              orderColumn: 3,
-              orderDir: "asc",
-              advancedFilters: { status: "vigente" },
-            })
-          );
-        }
-
-        const responses = await Promise.all(promises);
-        responses.forEach((response) => {
-          allItems.push(...response.data);
-        });
-
-        setLoadProgress(
-          Math.round((Math.min(i + parallelRequests - 1, totalPages) / totalPages) * 100)
-        );
-      }
-
-      if (!cancelLoading) {
-        await saveToCache(search, allItems);
-        setAllData(allItems);
-        setUseCache(true);
-        setSearchQuery(search);
-        alert(`✅ ${allItems.length} itens carregados e salvos em cache!`);
-      }
-    } catch (err) {
-      console.error("Erro ao carregar todos os dados:", err);
-      alert(
-        "❌ Erro ao carregar dados. A API pode estar limitando requisições. Tente novamente em alguns minutos."
-      );
-    } finally {
-      setIsLoadingAll(false);
-      setLoadProgress(0);
-      setCancelLoading(false);
-    }
-  }
 
   const results = useMemo(() => {
-    const rawResults = useCache ? allData : data?.data || [];
+    const rawResults = data?.data || [];
 
     if (rawResults.length === 0) return [];
 
@@ -329,14 +221,11 @@ export default function App() {
     }
 
     return filtered;
-  }, [useCache, allData, data?.data, advancedFilters.codigoPdm]);
+  }, [data?.data, advancedFilters.codigoPdm]);
 
-  const totalRecords = useCache ? allData.length : data?.recordsFiltered || 0;
+  const totalRecords = data?.recordsFiltered || 0;
   const totalPages = Math.ceil(totalRecords / pageSize);
-  const filteredCount = results.length;
-  const displayedResults = (
-    useCache ? results.slice((page - 1) * pageSize, page * pageSize) : results
-  ).filter((row) => {
+  const displayedResults = results.filter((row) => {
     const saldo = parseFloat(row.saldo_adesao);
     return !isNaN(saldo) && saldo !== 0;
   });
@@ -353,7 +242,7 @@ export default function App() {
     setAdvancedFilters(tempAdvancedFilters);
     setPage(1);
     setSelectedItems(new Set());
-    setUseCache(false);
+    setSearchVersion((v) => v + 1);
   }
 
   function extractCnpj(fornecedor: string): string | null {
@@ -543,7 +432,7 @@ export default function App() {
                   }}
                   placeholder="Digite e pressione Enter..."
                   className="text-input search-input"
-                  disabled={isFetching || isLoadingAll}
+                  disabled={isFetching}
                 />
               </div>
 
@@ -631,7 +520,7 @@ export default function App() {
             <div className="btn-group">
               <button
                 onClick={handleSearch}
-                disabled={!search.trim() || isFetching || isLoadingAll}
+                disabled={!search.trim() || isFetching}
                 className="btn btn-primary"
               >
                 <Search size={14} />
@@ -639,37 +528,8 @@ export default function App() {
               </button>
 
               <button
-                onClick={loadAllData}
-                disabled={!search.trim() || isLoadingAll || isFetching}
-                className="btn btn-success"
-              >
-                <Package size={14} />
-                {isLoadingAll ? `${loadProgress}%` : "Carregar Todos"}
-              </button>
-
-              {isLoadingAll && (
-                <button onClick={() => setCancelLoading(true)} className="btn btn-danger">
-                  <X size={14} /> Cancelar
-                </button>
-              )}
-
-              <button
-                onClick={async () => {
-                  if (window.confirm("Limpar todo o cache de dados?")) {
-                    await clearCache();
-                    setAllData([]);
-                    setUseCache(false);
-                    alert("Cache limpo!");
-                  }
-                }}
-                className="btn btn-ghost"
-              >
-                <Trash2 size={14} /> Cache
-              </button>
-
-              <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                disabled={isLoadingAll}
+
                 className={`btn btn-filter${activeFiltersCount > 0 ? " has-badge" : ""}`}
               >
                 <Filter size={14} />
@@ -695,7 +555,7 @@ export default function App() {
                     setPageSize(Number(e.target.value));
                     setPage(1);
                   }}
-                  disabled={isLoadingAll}
+  
                   className="select-sm"
                 >
                   <option value={50}>50</option>
@@ -727,30 +587,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* ── Cache banner ── */}
-        {useCache && allData.length > 0 && (
-          <div className="alert alert-info mb-2">
-            <Info size={15} />
-            <span>
-              <strong>Cache Ativo:</strong> {allData.length} itens carregados | Filtrados:{" "}
-              <strong>{filteredCount}</strong>
-            </span>
-          </div>
-        )}
-
-        {/* ── Progress ── */}
-        {isLoadingAll && (
-          <div className="progress-card mb-2">
-            <div className="progress-card__label">
-              Carregando dados em lote (1 000 itens por requisição, 5 paralelas)…
-            </div>
-            <div className="progress-bar-track">
-              <div className="progress-bar-fill" style={{ width: `${loadProgress}%` }}>
-                {loadProgress}%
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ── Advanced filters ── */}
         {showAdvanced && (
@@ -998,7 +834,7 @@ export default function App() {
           </div>
         )}
 
-        {isFetching && !isLoadingAll && (
+        {isFetching && (
           <div className="alert alert-warning">
             <Info size={16} />
             <span>Aguarde… buscando dados da API (pode levar alguns segundos)</span>
@@ -1006,7 +842,7 @@ export default function App() {
         )}
 
         {/* ── Pagination bar ── */}
-        {searchQuery && !isFetching && !isLoadingAll && !error && (
+        {searchQuery && !isFetching && !error && (
           <div className="pagination-bar">
             <span className="pagination-info">
               Total: <strong>{totalRecords}</strong> registros &nbsp;|&nbsp; Página{" "}
@@ -1015,7 +851,7 @@ export default function App() {
             <div className="pagination-controls">
               <button
                 onClick={() => setPage(1)}
-                disabled={page === 1 || isFetching || isLoadingAll}
+                disabled={page === 1 || isFetching}
                 className="btn btn-sm btn-page"
                 title="Primeira página"
               >
@@ -1023,7 +859,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1 || isFetching || isLoadingAll}
+                disabled={page === 1 || isFetching}
                 className="btn btn-sm btn-page"
                 title="Página anterior"
               >
@@ -1046,7 +882,7 @@ export default function App() {
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages || isFetching || isLoadingAll}
+                disabled={page === totalPages || isFetching}
                 className="btn btn-sm btn-page"
                 title="Próxima página"
               >
@@ -1054,7 +890,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setPage(totalPages)}
-                disabled={page === totalPages || isFetching || isLoadingAll}
+                disabled={page === totalPages || isFetching}
                 className="btn btn-sm btn-page"
                 title="Última página"
               >
@@ -1065,7 +901,7 @@ export default function App() {
         )}
 
         {/* ── Table section ── */}
-        {!isFetching && !isLoadingAll && displayedResults.length > 0 && (
+        {!isFetching && displayedResults.length > 0 && (
           <>
             {/* Column visibility chips */}
             <div className="card column-vis-card mb-2">
@@ -1331,7 +1167,7 @@ export default function App() {
         )}
 
         {/* ── Empty state ── */}
-        {!isFetching && !isLoadingAll && searchQuery && displayedResults.length === 0 && !error && (
+        {!isFetching && searchQuery && displayedResults.length === 0 && !error && (
           <div className="empty-state">
             <Package size={44} className="empty-state__icon" />
             <p>
@@ -1343,7 +1179,7 @@ export default function App() {
         )}
 
         {/* ── Footer hint ── */}
-        {totalPages > 1 && !isFetching && !isLoadingAll && (
+        {totalPages > 1 && !isFetching && (
           <div className="alert alert-success mt-2">
             <Info size={14} />
             <span>
